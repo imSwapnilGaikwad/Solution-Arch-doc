@@ -1,12 +1,157 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Google Doc Viewer</title>
-</head>
-<body>
-  <h1>Solution Arch Doc</h1>
-  <iframe src="https://docs.google.com/document/d/e/2PACX-1vSZT64QZL8aPL__mk1A7MWwfOM_x0qmMwokqkoKndK1MYZY1HEdCX4pQhjodkrv0zD1lLye-XLjZjmY/pub?embedded=true"></iframe>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Solution Architect Documentation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="app">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-content">
+          <div class="logo-section">
+            <div class="logo-icon">📚</div>
+            <h1 class="logo">Solution Architect</h1>
+            <span class="logo-subtitle">Documentation Hub</span>
+          </div>
+          <div class="header-controls">
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+              <span class="theme-icon">🌙</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Container -->
+      <div class="main-container">
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+          <div class="tabs-container">
+            <button class="tab-item active" data-topic="database">
+              <div class="tab-icon">🗄️</div>
+              <span class="tab-label">Database</span>
+              <div class="tab-indicator"></div>
+            </button>
+            <button class="tab-item" data-topic="crypto">
+              <div class="tab-icon">🔐</div>
+              <span class="tab-label">Cryptography</span>
+              <div class="tab-indicator"></div>
+            </button>
+            <button class="tab-item" data-topic="authentication">
+              <div class="tab-icon">🔑</div>
+              <span class="tab-label">Authentication</span>
+              <div class="tab-indicator"></div>
+            </button>
+            <button class="tab-item" data-topic="transport">
+              <div class="tab-icon">🌐</div>
+              <span class="tab-label">Transport Layer</span>
+              <div class="tab-indicator"></div>
+            </button>
+            <button class="tab-item" data-topic="system">
+              <div class="tab-icon">⚙️</div>
+              <span class="tab-label">System Layer</span>
+              <div class="tab-indicator"></div>
+            </button>
+          </div>
+        </nav>
+
+        <!-- Content Area -->
+        <main class="content-area">
+          <!-- Topic Header -->
+          <div class="topic-header">
+            <div class="topic-info">
+              <h2 id="topic-title">Database Architecture</h2>
+              <p id="topic-description">Comprehensive guide to database design patterns, optimization strategies, and architectural best practices</p>
+            </div>
+            <div class="topic-meta">
+              <span class="topic-badge" id="topic-badge">Database</span>
+            </div>
+          </div>
+          
+          <!-- Document Container -->
+          <div class="document-container">
+            <!-- Database Content -->
+            <div class="content-section active" id="database-content">
+              <div class="iframe-wrapper">
+                <div class="iframe-loading">
+                  <div class="loading-spinner"></div>
+                  <p>Loading documentation...</p>
+                </div>
+                <iframe 
+                  src="https://docs.google.com/document/d/e/2PACX-1vSZT64QZL8aPL__mk1A7MWwfOM_x0qmMwokqkoKndK1MYZY1HEdCX4pQhjodkrv0zD1lLye-XLjZjmY/pub?embedded=true"
+                  title="Database Documentation"
+                  loading="lazy">
+                </iframe>
+              </div>
+            </div>
+
+            <!-- Crypto Content -->
+            <div class="content-section" id="crypto-content">
+              <div class="iframe-wrapper">
+                <div class="iframe-loading">
+                  <div class="loading-spinner"></div>
+                  <p>Loading documentation...</p>
+                </div>
+                <iframe 
+                  src="https://docs.google.com/document/d/e/2PACX-1vSZT64QZL8aPL__mk1A7MWwfOM_x0qmMwokqkoKndK1MYZY1HEdCX4pQhjodkrv0zD1lLye-XLjZjmY/pub?embedded=true"
+                  title="Cryptography Documentation"
+                  loading="lazy">
+                </iframe>
+              </div>
+            </div>
+
+            <!-- Authentication Content -->
+            <div class="content-section" id="authentication-content">
+              <div class="iframe-wrapper">
+                <div class="iframe-loading">
+                  <div class="loading-spinner"></div>
+                  <p>Loading documentation...</p>
+                </div>
+                <iframe 
+                  src="https://docs.google.com/document/d/e/2PACX-1vSZT64QZL8aPL__mk1A7MWwfOM_x0qmMwokqkoKndK1MYZY1HEdCX4pQhjodkrv0zD1lLye-XLjZjmY/pub?embedded=true"
+                  title="Authentication Documentation"
+                  loading="lazy">
+                </iframe>
+              </div>
+            </div>
+
+            <!-- Transport Content -->
+            <div class="content-section" id="transport-content">
+              <div class="iframe-wrapper">
+                <div class="iframe-loading">
+                  <div class="loading-spinner"></div>
+                  <p>Loading documentation...</p>
+                </div>
+                <iframe 
+                  src="https://docs.google.com/document/d/e/2PACX-1vSZT64QZL8aPL__mk1A7MWwfOM_x0qmMwokqkoKndK1MYZY1HEdCX4pQhjodkrv0zD1lLye-XLjZjmY/pub?embedded=true"
+                  title="Transport Layer Documentation"
+                  loading="lazy">
+                </iframe>
+              </div>
+            </div>
+
+            <!-- System Content -->
+            <div class="content-section" id="system-content">
+              <div class="iframe-wrapper">
+                <div class="iframe-loading">
+                  <div class="loading-spinner"></div>
+                  <p>Loading documentation...</p>
+                </div>
+                <iframe 
+                  src="https://docs.google.com/document/d/e/2PACX-1vSZT64QZL8aPL__mk1A7MWwfOM_x0qmMwokqkoKndK1MYZY1HEdCX4pQhjodkrv0zD1lLye-XLjZjmY/pub?embedded=true"
+                  title="System Layer Documentation"
+                  loading="lazy">
+                </iframe>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="/main.js"></script>
+  </body>
 </html>
