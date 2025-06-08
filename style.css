@@ -6,13 +6,12 @@ body {
 }
 
 .container {
-  max-width: 960px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 1rem;
 }
 
 header h1 {
-  margin-bottom: 1rem;
   font-size: 2rem;
   border-bottom: 2px solid #ccc;
   padding-bottom: 0.5rem;
@@ -21,7 +20,7 @@ header h1 {
 .tabs {
   display: flex;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin: 1rem 0;
 }
 
 .tabs button {
@@ -37,7 +36,38 @@ header h1 {
   background: #dee2e6;
 }
 
-main#content {
+.main-content {
+  display: flex;
+  gap: 1rem;
+}
+
+#sidebar {
+  width: 250px;
+  background: #ffffff;
+  border: 1px solid #ddd;
+  padding: 1rem;
+  border-radius: 6px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+#sidebar ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+#sidebar li {
+  margin-bottom: 0.5rem;
+}
+
+#sidebar li h3 {
+  font-size: 0.95rem;
+  margin: 0.25rem 0 0.25rem 1rem;
+  font-weight: normal;
+}
+
+#content {
+  flex-grow: 1;
   background: white;
   padding: 1rem;
   border-radius: 6px;
