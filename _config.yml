@@ -1,0 +1,9 @@
+title: My Developer Blog
+description: Thoughts on coding and tech
+baseurl: ""
+url: "https://imswapnilgaikwad.github.io/Solution-Arch-doc/"
+
+# GitHub Pages automatically uses these Jekyll settings
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
