@@ -1,10 +1,10 @@
 ---
 layout: post
-title: "Hello World"
+title: "Hello testing "
 date: 2025-08-03
 categories: coding
 ---
 
-# My first Jekyll post
+# Testing Blog 
 
-This post is automatically converted to HTML and deployed!
+This asdsada ddasasd sad
