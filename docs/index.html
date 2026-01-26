@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDS Block Generation - Developer Training</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #FA0F00;
+        }
+        
+        .header h2 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: #e8e8e8;
+        }
+        
+        .header p {
+            margin-top: 20px;
+            color: #4ECDC4;
+            font-size: 1.1rem;
+        }
+        
+        .downloads {
+            display: grid;
+            gap: 24px;
+        }
+        
+        .download-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 30px;
+            transition: all 0.3s ease;
+        }
+        
+        .download-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .download-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .download-card p {
+            color: #b0b0b0;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #FA0F00;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background 0.3s ease;
+        }
+        
+        .download-btn:hover {
+            background: #d60d00;
+        }
+        
+        .icon {
+            font-size: 1.5rem;
+        }
+        
+        .resources {
+            margin-top: 60px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+        }
+        
+        .resources h3 {
+            margin-bottom: 20px;
+            color: #4ECDC4;
+        }
+        
+        .resources ul {
+            list-style: none;
+        }
+        
+        .resources li {
+            margin-bottom: 12px;
+        }
+        
+        .resources a {
+            color: #e8e8e8;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        .resources a:hover {
+            color: #FA0F00;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>EDS Block Generation</h1>
+            <h2>Developer Training Materials</h2>
+            <p>Duration: 5-6 Hours | Level: Intermediate</p>
+        </div>
+        
+        <div class="downloads">
+            <div class="download-card">
+                <h3><span class="icon">📊</span> Training Presentation</h3>
+                <p>15-slide PowerPoint presentation covering all 6 modules. Dark theme with minimal slides designed for live coding sessions.</p>
+                <a href="EDS-Block-Generation-Training.pptx" class="download-btn" download>
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                        <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                    </svg>
+                    Download PPTX
+                </a>
+            </div>
+            
+            <div class="download-card">
+                <h3><span class="icon">📖</span> Trainer Guide</h3>
+                <p>Comprehensive trainer handbook with detailed scripts, timing, SAY/DO/ASK prompts, all code examples, exercise solutions, and troubleshooting guide.</p>
+                <a href="EDS-Block-Generation-Trainer-Guide.docx" class="download-btn" download>
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                        <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                    </svg>
+                    Download DOCX
+                </a>
+            </div>
+        </div>
+        
+        <div class="resources">
+            <h3>📚 Reference Links</h3>
+            <ul>
+                <li>→ <a href="http://www.aem.live/developer/ue-tutorial" target="_blank">Setup Tutorial</a></li>
+                <li>→ <a href="https://www.aem.live/developer/anatomy-of-a-project" target="_blank">Anatomy of a Project</a></li>
+                <li>→ <a href="https://www.aem.live/developer/block-collection" target="_blank">Block Collection</a></li>
+                <li>→ <a href="https://www.aem.live/docs/dev-collab-and-good-practices" target="_blank">Best Practices</a></li>
+                <li>→ <a href="https://github.com/adobe-rnd/aem-boilerplate-xwalk" target="_blank">Boilerplate Repository</a></li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>EDS Block Generation Developer Training</p>
+        </div>
+    </div>
+</body>
+</html>
