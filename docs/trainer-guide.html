@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDS Block Generation - Trainer Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --adobe-red: #FA0F00;
+            --dark-gray: #333333;
+            --light-gray: #f5f5f5;
+            --accent: #4ECDC4;
+            --say-bg: #E3F2FD;
+            --say-border: #2196F3;
+            --do-bg: #E8F5E9;
+            --do-border: #4CAF50;
+            --ask-bg: #FFF3E0;
+            --ask-border: #FF9800;
+            --check-bg: #FCE4EC;
+            --check-border: #E91E63;
+            --note-bg: #F3E5F5;
+            --note-border: #9C27B0;
+            --code-bg: #F5F5F5;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--dark-gray);
+            background: #fff;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        /* Header */
+        .title-page {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            margin: -40px -20px 40px -20px;
+        }
+        
+        .title-page h1 {
+            font-size: 2.5rem;
+            color: var(--adobe-red);
+            margin-bottom: 10px;
+        }
+        
+        .title-page h2 {
+            font-size: 1.8rem;
+            font-weight: 400;
+            margin-bottom: 5px;
+        }
+        
+        .title-page h3 {
+            font-size: 1.3rem;
+            color: #888;
+            font-weight: 400;
+        }
+        
+        .title-page .meta {
+            margin-top: 30px;
+            color: var(--accent);
+        }
+        
+        /* Reference Links Box */
+        .ref-links {
+            background: #FFF8E1;
+            border: 2px solid #FFB300;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        
+        .ref-links h4 {
+            margin-bottom: 15px;
+            color: var(--dark-gray);
+        }
+        
+        .ref-links ul {
+            list-style: none;
+        }
+        
+        .ref-links li {
+            margin-bottom: 8px;
+        }
+        
+        .ref-links a {
+            color: #1565C0;
+            text-decoration: none;
+        }
+        
+        .ref-links a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Section Headers */
+        .section-header {
+            font-size: 1.5rem;
+            color: var(--adobe-red);
+            border-bottom: 3px solid var(--adobe-red);
+            padding-bottom: 10px;
+            margin: 50px 0 25px 0;
+        }
+        
+        .subsection {
+            font-size: 1.2rem;
+            color: var(--dark-gray);
+            margin: 30px 0 15px 0;
+            font-weight: 600;
+        }
+        
+        /* Time indicator */
+        .time {
+            text-align: right;
+            color: #666;
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+        
+        /* Trainer boxes */
+        .trainer-box {
+            border-radius: 4px;
+            padding: 15px 20px;
+            margin: 15px 0;
+            border-left: 5px solid;
+        }
+        
+        .trainer-box.say {
+            background: var(--say-bg);
+            border-color: var(--say-border);
+        }
+        
+        .trainer-box.do {
+            background: var(--do-bg);
+            border-color: var(--do-border);
+        }
+        
+        .trainer-box.ask {
+            background: var(--ask-bg);
+            border-color: var(--ask-border);
+        }
+        
+        .trainer-box.check {
+            background: var(--check-bg);
+            border-color: var(--check-border);
+        }
+        
+        .trainer-box.note {
+            background: var(--note-bg);
+            border-color: var(--note-border);
+        }
+        
+        .trainer-box .label {
+            font-weight: 700;
+            margin-right: 8px;
+        }
+        
+        .trainer-box.say .label { color: var(--say-border); }
+        .trainer-box.do .label { color: var(--do-border); }
+        .trainer-box.ask .label { color: var(--ask-border); }
+        .trainer-box.check .label { color: var(--check-border); }
+        .trainer-box.note .label { color: var(--note-border); }
+        
+        /* Code blocks */
+        pre {
+            background: var(--code-bg);
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px 20px;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 15px 0;
+        }
+        
+        code {
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px 15px;
+            text-align: left;
+        }
+        
+        th {
+            background: var(--light-gray);
+            font-weight: 600;
+        }
+        
+        /* Lists */
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 25px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        /* Paragraphs */
+        p {
+            margin-bottom: 15px;
+        }
+        
+        /* TOC */
+        .toc {
+            background: var(--light-gray);
+            padding: 25px 30px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+        
+        .toc h3 {
+            margin-bottom: 15px;
+            color: var(--adobe-red);
+        }
+        
+        .toc ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .toc li {
+            margin-bottom: 10px;
+        }
+        
+        .toc a {
+            color: var(--dark-gray);
+            text-decoration: none;
+        }
+        
+        .toc a:hover {
+            color: var(--adobe-red);
+        }
+        
+        /* Print styles */
+        @media print {
+            .title-page {
+                background: white;
+                color: black;
+            }
+            .title-page h1 {
+                color: var(--adobe-red);
+            }
+            .container {
+                max-width: 100%;
+            }
+        }
+        
+        /* Back to top */
+        .back-link {
+            display: inline-block;
+            margin: 30px 0;
+            color: var(--adobe-red);
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        /* Navigation */
+        .nav {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        
+        .nav a {
+            color: var(--adobe-red);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 768px) {
+            .nav {
+                display: none;
+            }
+            .title-page h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="index.html">← Back to Downloads</a>
+    </nav>
+    
+    <div class="title-page">
+        <h1>EDS BLOCK GENERATION</h1>
+        <h2>Developer Training</h2>
+        <h3>TRAINER GUIDE</h3>
+        <p class="meta">Duration: 5-6 Hours | Level: Intermediate</p>
+    </div>
+    
+    <div class="container">
+        <div class="ref-links">
+            <h4>📚 Reference Links</h4>
+            <ul>
+                <li>• Setup Tutorial: <a href="http://www.aem.live/developer/ue-tutorial" target="_blank">aem.live/developer/ue-tutorial</a></li>
+                <li>• Anatomy of Project: <a href="https://www.aem.live/developer/anatomy-of-a-project" target="_blank">aem.live/developer/anatomy-of-a-project</a></li>
+                <li>• Block Collection: <a href="https://www.aem.live/developer/block-collection" target="_blank">aem.live/developer/block-collection</a></li>
+                <li>• Best Practices: <a href="https://www.aem.live/docs/dev-collab-and-good-practices" target="_blank">aem.live/docs/dev-collab-and-good-practices</a></li>
+                <li>• Boilerplate Repo: <a href="https://github.com/adobe-rnd/aem-boilerplate-xwalk" target="_blank">github.com/adobe-rnd/aem-boilerplate-xwalk</a></li>
+            </ul>
+        </div>
+        
+        <div class="toc">
+            <h3>Table of Contents</h3>
+            <ul>
+                <li><a href="#section1">1. Training Overview & Objectives</a></li>
+                <li><a href="#section2">2. Pre-Training Checklist</a></li>
+                <li><a href="#section3">3. Module 1: Introduction to EDS (45 min)</a></li>
+                <li><a href="#section4">4. Module 2: Project Structure (30 min)</a></li>
+                <li><a href="#section5">5. Module 3: Block Anatomy (60 min)</a></li>
+                <li><a href="#section6">6. Module 4: Building Your First Block (90 min)</a></li>
+                <li><a href="#section7">7. Module 5: Advanced Block Patterns (60 min)</a></li>
+                <li><a href="#section8">8. Module 6: Block Variants (45 min)</a></li>
+                <li><a href="#section9">9. Exercise Solutions</a></li>
+                <li><a href="#section10">10. Troubleshooting Guide</a></li>
+            </ul>
+        </div>
+        
+        <!-- Section 1 -->
+        <h2 class="section-header" id="section1">1. Training Overview & Objectives</h2>
+        
+        <h3 class="subsection">Training Purpose</h3>
+        <p>This hands-on training will equip intermediate developers with the skills to build custom blocks for AEM Edge Delivery Services (EDS). By the end of this session, participants will be able to create, style, and deploy production-ready blocks.</p>
+        
+        <h3 class="subsection">Learning Objectives</h3>
+        <p>Upon completion, participants will be able to:</p>
+        <ul>
+            <li>Understand EDS architecture and content flow</li>
+            <li>Navigate and modify EDS project structure</li>
+            <li>Create blocks with JavaScript and CSS</li>
+            <li>Implement block variants for different use cases</li>
+            <li>Apply best practices for performance optimization</li>
+            <li>Debug common block issues</li>
+        </ul>
+        
+        <h3 class="subsection">Target Audience</h3>
+        <p>Intermediate developers who are familiar with:</p>
+        <ul>
+            <li>HTML, CSS, JavaScript (ES6+)</li>
+            <li>Basic AEM concepts</li>
+            <li>Git version control</li>
+        </ul>
+        
+        <h3 class="subsection">Training Schedule</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Module</th>
+                    <th>Duration</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>09:00 - 09:45</td><td>Module 1: Introduction to EDS</td><td>45 min</td></tr>
+                <tr><td>09:45 - 10:15</td><td>Module 2: Project Structure</td><td>30 min</td></tr>
+                <tr><td>10:15 - 10:30</td><td>☕ Break</td><td>15 min</td></tr>
+                <tr><td>10:30 - 11:30</td><td>Module 3: Block Anatomy</td><td>60 min</td></tr>
+                <tr><td>11:30 - 13:00</td><td>Module 4: Building Your First Block</td><td>90 min</td></tr>
+                <tr><td>13:00 - 14:00</td><td>🍽 Lunch Break</td><td>60 min</td></tr>
+                <tr><td>14:00 - 15:00</td><td>Module 5: Advanced Block Patterns</td><td>60 min</td></tr>
+                <tr><td>15:00 - 15:15</td><td>☕ Break</td><td>15 min</td></tr>
+                <tr><td>15:15 - 16:00</td><td>Module 6: Block Variants & Wrap-up</td><td>45 min</td></tr>
+            </tbody>
+        </table>
+        
+        <!-- Section 2 -->
+        <h2 class="section-header" id="section2">2. Pre-Training Checklist</h2>
+        
+        <h3 class="subsection">Environment Setup (Complete 1 day before)</h3>
+        
+        <div class="trainer-box check">
+            <span class="label">[CHECK]</span> Verify all participants have completed the setup tutorial at aem.live/developer/ue-tutorial
+        </div>
+        
+        <ul>
+            <li>□ Node.js v18+ installed on all machines</li>
+            <li>□ Git configured with GitHub/GitLab access</li>
+            <li>□ VS Code with recommended extensions:
+                <ul>
+                    <li>AEM Sidekick Extension</li>
+                    <li>Live Server</li>
+                    <li>ESLint</li>
+                </ul>
+            </li>
+            <li>□ Boilerplate repository cloned from github.com/adobe-rnd/aem-boilerplate-xwalk</li>
+            <li>□ Local development server tested (npm start works)</li>
+            <li>□ Sidekick connected to test site</li>
+        </ul>
+        
+        <h3 class="subsection">Materials Prepared</h3>
+        <ul>
+            <li>□ Slides loaded and tested on presentation screen</li>
+            <li>□ Code examples ready in separate VS Code window</li>
+            <li>□ Block collection page open: aem.live/developer/block-collection</li>
+            <li>□ Exercise starter files distributed</li>
+            <li>□ Backup offline copies of documentation</li>
+        </ul>
+        
+        <h3 class="subsection">Room Setup</h3>
+        <ul>
+            <li>□ Projector/screen visible to all participants</li>
+            <li>□ WiFi credentials shared</li>
+            <li>□ Power outlets accessible</li>
+            <li>□ Whiteboard/flipchart available for diagrams</li>
+        </ul>
+        
+        <!-- Section 3 -->
+        <h2 class="section-header" id="section3">3. Module 1: Introduction to EDS</h2>
+        <p class="time">⏱ Duration: 45 minutes</p>
+        
+        <h3 class="subsection">1.1 What is Edge Delivery Services?</h3>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Welcome everyone! Today we're going to dive deep into building blocks for AEM Edge Delivery Services. Let's start by understanding what EDS is and why it's revolutionizing web development at Adobe.
+        </div>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Show the AEM Live homepage and navigate to the developer documentation.
+        </div>
+        
+        <p><strong>Key Points to Cover:</strong></p>
+        <ul>
+            <li>EDS is Adobe's next-generation content delivery platform</li>
+            <li>Achieves near-perfect Lighthouse scores (100/100)</li>
+            <li>Content authoring in Google Docs or Microsoft Word</li>
+            <li>Automatic conversion to optimized HTML</li>
+            <li>Edge-first architecture for global performance</li>
+        </ul>
+        
+        <div class="trainer-box ask">
+            <span class="label">[ASK]</span> Has anyone worked with traditional AEM Sites? What were some performance challenges you faced?
+        </div>
+        
+        <h3 class="subsection">1.2 EDS vs Traditional AEM</h3>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Draw this comparison on the whiteboard:
+        </div>
+        
+<pre>Traditional AEM:                    Edge Delivery Services:
+┌─────────────────────┐              ┌─────────────────────┐
+│   Author (AEM)      │              │  Author (Docs/Word) │
+│        ↓            │              │         ↓           │
+│   Dispatcher        │              │   GitHub Repo       │
+│        ↓            │              │         ↓           │
+│   CDN               │              │   Edge Network      │
+│        ↓            │              │         ↓           │
+│   Browser (Heavy)   │              │   Browser (Light)   │
+└─────────────────────┘              └─────────────────────┘</pre>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> The key difference is simplicity. With EDS, content authors work in familiar tools, and the system automatically optimizes everything for performance.
+        </div>
+        
+        <h3 class="subsection">1.3 Content Flow in EDS</h3>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Walk through this content flow diagram:
+        </div>
+        
+<pre>┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  Google Doc  │ →  │  Table/Div   │ →  │  HTML Block  │ →  │   Styled     │
+│  or Word     │    │  Structure   │    │  &lt;div&gt;       │    │   Component  │
+└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
+    Author              Parse            decorate()          CSS + JS</pre>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Authors create content in documents. Tables become blocks. The block name comes from the first cell. Our JavaScript decorate() function transforms the raw HTML, and CSS styles it.
+        </div>
+        
+        <h3 class="subsection">1.4 Hands-on: Explore a Live EDS Site</h3>
+        <p class="time">⏱ 15 minutes</p>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Have participants open browser DevTools on an EDS site and inspect block structures.
+        </div>
+        
+        <p><strong>Exercise 1.1: Site Inspection</strong></p>
+        <ol>
+            <li>Open https://www.aem.live in your browser</li>
+            <li>Open DevTools (F12) and go to Elements tab</li>
+            <li>Find a block element (look for class like 'block')</li>
+            <li>Note the class naming convention</li>
+            <li>Check the Network tab - observe the minimal requests</li>
+        </ol>
+        
+        <div class="trainer-box check">
+            <span class="label">[CHECK]</span> Walk around and ensure everyone can identify block elements in the DOM. Help anyone having trouble with DevTools.
+        </div>
+        
+        <!-- Section 4 -->
+        <h2 class="section-header" id="section4">4. Module 2: Project Structure</h2>
+        <p class="time">⏱ Duration: 30 minutes</p>
+        
+        <h3 class="subsection">2.1 Anatomy of an EDS Project</h3>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Open the boilerplate repository in VS Code and show the folder structure.
+        </div>
+        
+<pre>project-root/
+├── blocks/                 # All custom blocks live here
+│   ├── cards/
+│   │   ├── cards.js       # Block JavaScript
+│   │   └── cards.css      # Block styles
+│   ├── columns/
+│   │   ├── columns.js
+│   │   └── columns.css
+│   └── hero/
+│       ├── hero.js
+│       └── hero.css
+├── scripts/
+│   ├── aem.js             # Core EDS utilities (DON'T MODIFY)
+│   ├── scripts.js         # Your custom scripts
+│   └── delayed.js         # Lazy-loaded scripts
+├── styles/
+│   ├── styles.css         # Global styles
+│   └── fonts.css          # Font definitions
+├── head.html              # &lt;head&gt; contents
+├── header.html            # Site header
+├── footer.html            # Site footer
+└── 404.html               # Error page</pre>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> The most important thing to remember is the naming convention. For a block called "hero", you MUST have a folder called "hero" containing "hero.js" and "hero.css". The names must match exactly.
+        </div>
+        
+        <h3 class="subsection">2.2 Key Files Explained</h3>
+        
+        <p><strong>scripts/aem.js - Core Utilities</strong></p>
+        
+        <div class="trainer-box note">
+            <span class="label">[NOTE]</span> This file contains essential utilities. Never modify it directly - it's maintained by Adobe.
+        </div>
+        
+        <p>Key functions from aem.js:</p>
+        <ul>
+            <li><code>createOptimizedPicture()</code> - Generates responsive images</li>
+            <li><code>decorateIcons()</code> - Converts icon references to SVGs</li>
+            <li><code>loadBlocks()</code> - Discovers and loads block code</li>
+            <li><code>toClassName()</code> - Converts text to valid CSS class names</li>
+            <li><code>getMetadata()</code> - Reads page metadata</li>
+        </ul>
+        
+        <p><strong>scripts/scripts.js - Your Custom Code</strong></p>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Open scripts.js and walk through the loadPage() function.
+        </div>
+        
+<pre>// scripts/scripts.js - Key sections to highlight
+async function loadPage() {
+  await loadEager(document);    // Critical path - blocks above fold
+  await loadLazy(document);     // Below fold content
+  loadDelayed();                // Analytics, non-critical JS
+}</pre>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> EDS uses a phased loading approach. Eager loading handles visible content first, lazy loading handles the rest, and delayed loading is for things like analytics that don't affect user experience.
+        </div>
+        
+        <h3 class="subsection">2.3 Hands-on: Project Exploration</h3>
+        <p class="time">⏱ 10 minutes</p>
+        
+        <p><strong>Exercise 2.1: Navigate the Boilerplate</strong></p>
+        <ol>
+            <li>Open the cloned boilerplate in VS Code</li>
+            <li>Find the blocks/ folder - list all existing blocks</li>
+            <li>Open one block folder - identify the JS and CSS files</li>
+            <li>Open scripts/aem.js - find the createOptimizedPicture function</li>
+            <li>Open styles/styles.css - note the CSS variable definitions</li>
+        </ol>
+        
+        <div class="trainer-box check">
+            <span class="label">[CHECK]</span> Ask 2-3 participants to share what blocks they found in the boilerplate.
+        </div>
+        
+        <!-- Section 5 -->
+        <h2 class="section-header" id="section5">5. Module 3: Block Anatomy</h2>
+        <p class="time">⏱ Duration: 60 minutes</p>
+        
+        <h3 class="subsection">3.1 Block Structure Deep Dive</h3>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Now we get to the heart of EDS development - understanding how blocks work. A block is simply a div element with a specific class that gets enhanced by JavaScript and styled with CSS.
+        </div>
+        
+        <p><strong>How Content Becomes a Block:</strong></p>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Show this transformation in Google Docs vs. rendered HTML:
+        </div>
+        
+<pre>GOOGLE DOCS TABLE:
+┌──────────────────────────────────────┐
+│ Hero                                  │  ← Block name (first row)
+├──────────────────────────────────────┤
+│ Welcome to Our Site                   │  ← Content row 1
+├──────────────────────────────────────┤
+│ Discover amazing things...            │  ← Content row 2
+├──────────────────────────────────────┤
+│ [Button: Learn More]                  │  ← Content row 3
+└──────────────────────────────────────┘</pre>
+        
+<pre>GENERATED HTML:
+&lt;div class="hero-wrapper"&gt;
+  &lt;div class="hero block" data-block-name="hero" data-block-status="loaded"&gt;
+    &lt;div&gt;
+      &lt;div&gt;Welcome to Our Site&lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div&gt;
+      &lt;div&gt;Discover amazing things...&lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div&gt;
+      &lt;div&gt;&lt;a href="/learn" class="button"&gt;Learn More&lt;/a&gt;&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Notice the structure: wrapper div, block div with classes, and nested divs for each row and cell. Your decorate() function receives this block div and can transform it however needed.
+        </div>
+        
+        <h3 class="subsection">3.2 The decorate() Function</h3>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Every block has a decorate() function. This is your entry point. EDS automatically calls it when the block loads.
+        </div>
+        
+<pre>// blocks/hero/hero.js
+export default function decorate(block) {
+  // 'block' is the div with class="hero block"
+  
+  // Get all rows (direct children divs)
+  const rows = [...block.children];
+  
+  // Process each row
+  rows.forEach((row, index) => {
+    // Get cells within the row
+    const cells = [...row.children];
+    
+    // Do something with each cell
+    cells.forEach(cell => {
+      // Transform content as needed
+    });
+  });
+}</pre>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Type this code live while explaining each part. Add console.log statements to show the structure.
+        </div>
+        
+        <h3 class="subsection">3.3 Common Block Patterns</h3>
+        
+        <p><strong>Pattern 1: Extract and Restructure</strong></p>
+        
+<pre>export default function decorate(block) {
+  // Extract content from nested structure
+  const heading = block.querySelector('h1, h2, h3');
+  const paragraph = block.querySelector('p');
+  const image = block.querySelector('picture');
+  
+  // Clear and rebuild
+  block.innerHTML = '';
+  
+  // Create new structure
+  const content = document.createElement('div');
+  content.className = 'hero-content';
+  if (heading) content.append(heading);
+  if (paragraph) content.append(paragraph);
+  
+  const media = document.createElement('div');
+  media.className = 'hero-media';
+  if (image) media.append(image);
+  
+  block.append(content, media);
+}</pre>
+        
+        <p><strong>Pattern 2: Add Classes Based on Content</strong></p>
+        
+<pre>export default function decorate(block) {
+  const rows = [...block.children];
+  
+  rows.forEach((row, index) => {
+    row.classList.add(`hero-row-${index + 1}`);
+    
+    // Check content type and add appropriate class
+    if (row.querySelector('picture')) {
+      row.classList.add('has-image');
+    }
+    if (row.querySelector('a')) {
+      row.classList.add('has-cta');
+    }
+  });
+}</pre>
+        
+        <p><strong>Pattern 3: Using EDS Utilities</strong></p>
+        
+<pre>import { createOptimizedPicture } from '../../scripts/aem.js';
+
+export default function decorate(block) {
+  // Optimize all images in the block
+  block.querySelectorAll('img').forEach((img) => {
+    const optimized = createOptimizedPicture(
+      img.src,
+      img.alt,
+      false,  // eager loading
+      [{ width: '750' }]  // breakpoints
+    );
+    img.closest('picture')?.replaceWith(optimized);
+  });
+}</pre>
+        
+        <h3 class="subsection">3.4 Block CSS Fundamentals</h3>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> CSS for blocks follows a scoped pattern. Always prefix your selectors with the block class to avoid conflicts.
+        </div>
+        
+<pre>/* blocks/hero/hero.css */
+
+/* Block container */
+.hero {
+  position: relative;
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+}
+
+/* Target elements within the block */
+.hero .hero-content {
+  max-width: 600px;
+  padding: 2rem;
+}
+
+.hero h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.hero p {
+  font-size: 1.25rem;
+  line-height: 1.6;
+}
+
+/* Use CSS variables from global styles */
+.hero .button {
+  background-color: var(--link-color);
+  color: white;
+  padding: 1rem 2rem;
+}</pre>
+        
+        <div class="trainer-box note">
+            <span class="label">[NOTE]</span> Always use the block class as a prefix (.hero h1 not just h1). This prevents your styles from leaking to other parts of the page.
+        </div>
+        
+        <h3 class="subsection">3.5 Hands-on: Analyze Existing Blocks</h3>
+        <p class="time">⏱ 20 minutes</p>
+        
+        <p><strong>Exercise 3.1: Block Analysis</strong></p>
+        <ol>
+            <li>Open the 'cards' block from the boilerplate (blocks/cards/)</li>
+            <li>Read cards.js - identify the decorate() function</li>
+            <li>List all DOM manipulations being performed</li>
+            <li>Open cards.css - note the selector patterns</li>
+            <li>Answer: How does the block determine the number of columns?</li>
+        </ol>
+        
+        <div class="trainer-box check">
+            <span class="label">[CHECK]</span> Review the cards block together. Ask participants to explain what each section does.
+        </div>
+        
+        <!-- Section 6 -->
+        <h2 class="section-header" id="section6">6. Module 4: Building Your First Block</h2>
+        <p class="time">⏱ Duration: 90 minutes</p>
+        
+        <h3 class="subsection">4.1 Planning Our Block</h3>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Let's build a "testimonial" block from scratch. This will display customer quotes with photos and names. We'll go through the complete process: planning, creating files, writing JavaScript, adding CSS, and testing.
+        </div>
+        
+        <p><strong>Block Requirements:</strong></p>
+        <ul>
+            <li>Display a customer quote/testimonial</li>
+            <li>Show customer photo (circular)</li>
+            <li>Show customer name and title</li>
+            <li>Support multiple testimonials in a carousel (stretch goal)</li>
+        </ul>
+        
+        <p><strong>Expected Document Structure:</strong></p>
+<pre>┌──────────────────────────────────────────────────────────┐
+│ Testimonial                                               │
+├─────────────────────────┬────────────────────────────────┤
+│ [Customer Photo]        │ "This product changed my life! │
+│                         │ I can't imagine working        │
+│                         │ without it."                   │
+│                         │ - Jane Smith, CEO              │
+└─────────────────────────┴────────────────────────────────┘</pre>
+        
+        <h3 class="subsection">4.2 Step-by-Step: Create the Block Files</h3>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Create the block folder and files together with participants. Go slowly and explain each step.
+        </div>
+        
+        <p><strong>Step 1: Create the folder structure</strong></p>
+<pre># In terminal (or use VS Code)
+cd blocks/
+mkdir testimonial
+touch testimonial/testimonial.js
+touch testimonial/testimonial.css</pre>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Remember the naming rule: folder name, JS file, and CSS file must all match the block name exactly. Case matters!
+        </div>
+        
+        <h3 class="subsection">4.3 Writing the JavaScript</h3>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Type this code live, explaining each section. Encourage participants to type along.
+        </div>
+        
+        <p><strong>Step 2: Basic decorate function</strong></p>
+<pre>// blocks/testimonial/testimonial.js
+
+export default function decorate(block) {
+  console.log('Testimonial block loaded!');
+  console.log('Block element:', block);
+  console.log('Children:', block.children);
+}</pre>
+        
+        <div class="trainer-box check">
+            <span class="label">[CHECK]</span> Have everyone save and test. They should see the console logs when viewing a page with a testimonial block.
+        </div>
+        
+        <p><strong>Step 3: Extract content from rows</strong></p>
+<pre>// blocks/testimonial/testimonial.js
+
+export default function decorate(block) {
+  // Get the rows (in our case, just one content row)
+  const rows = [...block.children];
+  
+  // First row contains our content
+  const contentRow = rows[0];
+  if (!contentRow) return;
+  
+  // Get the cells (columns) in the row
+  const cells = [...contentRow.children];
+  
+  // First cell: image, Second cell: quote and attribution
+  const imageCell = cells[0];
+  const textCell = cells[1];
+  
+  console.log('Image cell:', imageCell);
+  console.log('Text cell:', textCell);
+}</pre>
+        
+        <p><strong>Step 4: Restructure the DOM</strong></p>
+<pre>// blocks/testimonial/testimonial.js
+
+export default function decorate(block) {
+  const rows = [...block.children];
+  const contentRow = rows[0];
+  if (!contentRow) return;
+  
+  const cells = [...contentRow.children];
+  const imageCell = cells[0];
+  const textCell = cells[1];
+  
+  // Clear the block
+  block.innerHTML = '';
+  
+  // Create new structure
+  const container = document.createElement('div');
+  container.className = 'testimonial-container';
+  
+  // Image section
+  const imageWrapper = document.createElement('div');
+  imageWrapper.className = 'testimonial-image';
+  const picture = imageCell?.querySelector('picture');
+  if (picture) {
+    imageWrapper.append(picture);
+  }
+  
+  // Quote section
+  const quoteWrapper = document.createElement('div');
+  quoteWrapper.className = 'testimonial-quote';
+  
+  // Extract quote text and attribution
+  const paragraphs = textCell?.querySelectorAll('p') || [];
+  paragraphs.forEach((p, index) => {
+    if (index === paragraphs.length - 1) {
+      // Last paragraph is attribution
+      p.className = 'testimonial-attribution';
+    } else {
+      // Other paragraphs are quote text
+      p.className = 'testimonial-text';
+    }
+    quoteWrapper.append(p);
+  });
+  
+  // Assemble the block
+  container.append(imageWrapper, quoteWrapper);
+  block.append(container);
+}</pre>
+        
+        <h3 class="subsection">4.4 Adding the CSS</h3>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Now let's style our block. Add the CSS together.
+        </div>
+        
+<pre>/* blocks/testimonial/testimonial.css */
+
+.testimonial {
+  padding: 4rem 2rem;
+  background-color: var(--light-color, #f5f5f5);
+}
+
+.testimonial .testimonial-container {
+  display: flex;
+  align-items: center;
+  gap: 3rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.testimonial .testimonial-image {
+  flex-shrink: 0;
+}
+
+.testimonial .testimonial-image picture {
+  display: block;
+}
+
+.testimonial .testimonial-image img {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid var(--link-color, #035fe6);
+}
+
+.testimonial .testimonial-quote {
+  flex: 1;
+}
+
+.testimonial .testimonial-text {
+  font-size: 1.5rem;
+  font-style: italic;
+  line-height: 1.6;
+  color: var(--text-color, #333);
+  margin-bottom: 1rem;
+}
+
+.testimonial .testimonial-text::before {
+  content: '"';
+  font-size: 3rem;
+  color: var(--link-color, #035fe6);
+  line-height: 0;
+  vertical-align: -0.5rem;
+  margin-right: 0.25rem;
+}
+
+.testimonial .testimonial-attribution {
+  font-weight: 600;
+  color: var(--link-color, #035fe6);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .testimonial .testimonial-container {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .testimonial .testimonial-text {
+    font-size: 1.25rem;
+  }
+}</pre>
+        
+        <h3 class="subsection">4.5 Testing the Block</h3>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Create a test document with a testimonial table and preview it.
+        </div>
+        
+        <p><strong>Testing Steps:</strong></p>
+        <ol>
+            <li>Create a Google Doc with a testimonial table</li>
+            <li>Preview using Sidekick or local server</li>
+            <li>Open DevTools to inspect the generated HTML</li>
+            <li>Test responsive behavior by resizing the browser</li>
+            <li>Debug any issues using console.log</li>
+        </ol>
+        
+        <div class="trainer-box check">
+            <span class="label">[CHECK]</span> Walk around and help participants troubleshoot. Common issues: typos in file names, missing export default, CSS selector specificity.
+        </div>
+        
+        <h3 class="subsection">4.6 Exercise: Build Your Own Block</h3>
+        <p class="time">⏱ 30 minutes</p>
+        
+        <p><strong>Exercise 4.1: Create a 'Feature' Block</strong></p>
+        <p>Build a block that displays a feature with:</p>
+        <ul>
+            <li>An icon (use an emoji or image)</li>
+            <li>A heading</li>
+            <li>A description</li>
+            <li>Optional: A link</li>
+        </ul>
+        
+        <p><strong>Document structure:</strong></p>
+<pre>┌──────────────────────────────────────┐
+│ Feature                               │
+├──────────────────────────────────────┤
+│ 🚀                                    │
+├──────────────────────────────────────┤
+│ Lightning Fast                        │
+├──────────────────────────────────────┤
+│ Our platform delivers sub-second      │
+│ response times globally.              │
+└──────────────────────────────────────┘</pre>
+        
+        <div class="trainer-box note">
+            <span class="label">[NOTE]</span> Solution is provided in Section 9. Give participants 25 minutes to work, then review together.
+        </div>
+        
+        <!-- Section 7 -->
+        <h2 class="section-header" id="section7">7. Module 5: Advanced Block Patterns</h2>
+        <p class="time">⏱ Duration: 60 minutes</p>
+        
+        <h3 class="subsection">5.1 Working with Images</h3>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Images are crucial for web performance. EDS provides createOptimizedPicture() to generate responsive images with proper srcset and lazy loading.
+        </div>
+        
+<pre>import { createOptimizedPicture } from '../../scripts/aem.js';
+
+export default function decorate(block) {
+  // Find all images in the block
+  block.querySelectorAll('img').forEach((img) => {
+    // Create optimized picture element
+    const optimized = createOptimizedPicture(
+      img.src,           // Image URL
+      img.alt || '',     // Alt text
+      false,             // Eager loading (true for above-fold images)
+      [                  // Breakpoints
+        { media: '(min-width: 600px)', width: '750' },
+        { width: '400' }
+      ]
+    );
+    
+    // Replace the original picture element
+    const originalPicture = img.closest('picture');
+    if (originalPicture) {
+      originalPicture.replaceWith(optimized);
+    }
+  });
+}</pre>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Show the before and after in DevTools - the generated srcset and sizes attributes.
+        </div>
+        
+        <h3 class="subsection">5.2 Working with Icons</h3>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> EDS uses a colon syntax for icons in documents: :icon-name: becomes an SVG from the /icons/ folder.
+        </div>
+        
+<pre>import { decorateIcons } from '../../scripts/aem.js';
+
+export default async function decorate(block) {
+  // Authors write :checkmark: in their document
+  // EDS converts to: &lt;span class="icon icon-checkmark"&gt;&lt;/span&gt;
+  
+  // decorateIcons() loads the SVG and injects it
+  await decorateIcons(block);
+  
+  // Now you can style the SVG
+  block.querySelectorAll('.icon svg').forEach((svg) => {
+    svg.style.fill = 'currentColor';
+  });
+}</pre>
+        
+        <p><strong>Icon file requirements:</strong></p>
+        <ul>
+            <li>Place SVG files in /icons/ folder</li>
+            <li>Name must match: :checkmark: → /icons/checkmark.svg</li>
+            <li>SVGs should be optimized (use SVGO)</li>
+            <li>Remove hardcoded colors for CSS styling</li>
+        </ul>
+        
+        <h3 class="subsection">5.3 Async Operations in Blocks</h3>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Sometimes blocks need to fetch data or wait for resources. The decorate function can be async.
+        </div>
+        
+<pre>export default async function decorate(block) {
+  // Show loading state
+  block.classList.add('loading');
+  
+  try {
+    // Fetch external data
+    const response = await fetch('/api/data.json');
+    const data = await response.json();
+    
+    // Use the data to build content
+    data.items.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        &lt;h3&gt;${item.title}&lt;/h3&gt;
+        &lt;p&gt;${item.description}&lt;/p&gt;
+      `;
+      block.append(card);
+    });
+  } catch (error) {
+    console.error('Failed to load data:', error);
+    block.innerHTML = '&lt;p&gt;Failed to load content&lt;/p&gt;';
+  } finally {
+    block.classList.remove('loading');
+  }
+}</pre>
+        
+        <h3 class="subsection">5.4 Block Communication</h3>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Sometimes blocks need to communicate with each other. Use custom events for loose coupling.
+        </div>
+        
+<pre>// Block A: Dispatch event
+export default function decorate(block) {
+  block.addEventListener('click', () => {
+    const event = new CustomEvent('product-selected', {
+      detail: { productId: '123', name: 'Widget' },
+      bubbles: true
+    });
+    block.dispatchEvent(event);
+  });
+}
+
+// Block B: Listen for event
+export default function decorate(block) {
+  document.addEventListener('product-selected', (e) => {
+    const { productId, name } = e.detail;
+    block.innerHTML = `Selected: ${name} (ID: ${productId})`;
+  });
+}</pre>
+        
+        <h3 class="subsection">5.5 Performance Best Practices</h3>
+        
+        <p><strong>Do:</strong></p>
+        <ul>
+            <li>Use CSS for animations (not JavaScript)</li>
+            <li>Lazy load images below the fold</li>
+            <li>Minimize DOM manipulations</li>
+            <li>Use event delegation for dynamic content</li>
+            <li>Keep blocks focused - one responsibility</li>
+        </ul>
+        
+        <p><strong>Don't:</strong></p>
+        <ul>
+            <li>Import large libraries (bundle size matters)</li>
+            <li>Use innerHTML for untrusted content</li>
+            <li>Add blocking operations in decorate()</li>
+            <li>Create memory leaks with unremoved listeners</li>
+            <li>Override core EDS functionality</li>
+        </ul>
+        
+        <h3 class="subsection">5.6 Hands-on: Add Image Optimization</h3>
+        <p class="time">⏱ 15 minutes</p>
+        
+        <p><strong>Exercise 5.1: Enhance Your Testimonial Block</strong></p>
+        <ol>
+            <li>Import createOptimizedPicture from aem.js</li>
+            <li>Apply image optimization to the testimonial photo</li>
+            <li>Add appropriate breakpoints for responsive images</li>
+            <li>Test on different screen sizes</li>
+        </ol>
+        
+        <!-- Section 8 -->
+        <h2 class="section-header" id="section8">8. Module 6: Block Variants</h2>
+        <p class="time">⏱ Duration: 45 minutes</p>
+        
+        <h3 class="subsection">6.1 What Are Block Variants?</h3>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Variants let authors customize block appearance without creating new blocks. They add modifier classes using parentheses syntax in the document.
+        </div>
+        
+        <p><strong>Variant Syntax in Documents:</strong></p>
+<pre>Document table header:          Generated HTML class:
+──────────────────────────────────────────────────────
+Hero                          → class="hero block"
+Hero (centered)               → class="hero centered block"
+Hero (dark, large)            → class="hero dark large block"
+Cards (3-columns)             → class="cards 3-columns block"</pre>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> The text in parentheses becomes additional CSS classes. Multiple variants are comma-separated. This is powerful because authors control the look without touching code.
+        </div>
+        
+        <h3 class="subsection">6.2 Implementing Variants in CSS</h3>
+        
+<pre>/* blocks/hero/hero.css */
+
+/* Base hero styles */
+.hero {
+  min-height: 50vh;
+  padding: 2rem;
+  background-color: white;
+  color: var(--text-color);
+}
+
+/* Variant: centered */
+.hero.centered {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Variant: dark */
+.hero.dark {
+  background-color: var(--dark-color, #1a1a2e);
+  color: white;
+}
+
+.hero.dark .button {
+  background-color: white;
+  color: var(--dark-color);
+}
+
+/* Variant: large */
+.hero.large {
+  min-height: 80vh;
+  padding: 4rem;
+}
+
+.hero.large h1 {
+  font-size: 4rem;
+}
+
+/* Combining variants */
+.hero.dark.centered {
+  /* Specific styles when both variants are applied */
+}
+
+/* Variant with value: 3-columns */
+.cards.3-columns {
+  grid-template-columns: repeat(3, 1fr);
+}</pre>
+        
+        <h3 class="subsection">6.3 Implementing Variants in JavaScript</h3>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Sometimes variants need JavaScript logic, not just CSS. You can check for variant classes in your decorate function.
+        </div>
+        
+<pre>export default function decorate(block) {
+  // Check for specific variants
+  const isCentered = block.classList.contains('centered');
+  const isDark = block.classList.contains('dark');
+  const isCarousel = block.classList.contains('carousel');
+  
+  // Adjust behavior based on variants
+  if (isCarousel) {
+    // Add carousel functionality
+    initCarousel(block);
+  }
+  
+  if (isDark) {
+    // Maybe adjust icon colors for contrast
+    block.querySelectorAll('.icon').forEach(icon => {
+      icon.style.color = 'white';
+    });
+  }
+  
+  // You can also extract variant values
+  const columnMatch = [...block.classList]
+    .find(c => c.match(/^(\d+)-columns$/));
+  
+  if (columnMatch) {
+    const columns = parseInt(columnMatch);
+    block.style.setProperty('--columns', columns);
+  }
+}</pre>
+        
+        <h3 class="subsection">6.4 Variant Best Practices</h3>
+        
+        <p><strong>Naming Conventions:</strong></p>
+        <ul>
+            <li>Use descriptive names: 'dark', 'centered', 'wide'</li>
+            <li>For values, use patterns: '3-columns', 'large-gap'</li>
+            <li>Keep names short but meaningful</li>
+            <li>Document available variants for authors</li>
+        </ul>
+        
+        <p><strong>Design Principles:</strong></p>
+        <ul>
+            <li>Base styles should work without variants</li>
+            <li>Variants should enhance, not fix broken layouts</li>
+            <li>Limit to 3-5 variants per block</li>
+            <li>Test all variant combinations</li>
+        </ul>
+        
+        <h3 class="subsection">6.5 Hands-on: Add Variants</h3>
+        <p class="time">⏱ 20 minutes</p>
+        
+        <p><strong>Exercise 6.1: Extend Your Testimonial Block</strong></p>
+        <p>Add these variants to your testimonial block:</p>
+        <ol>
+            <li><strong>'reversed'</strong> - Image on the right instead of left</li>
+            <li><strong>'compact'</strong> - Smaller text and padding</li>
+            <li><strong>'highlighted'</strong> - Add a colored background</li>
+        </ol>
+        
+        <p>Test by creating document tables with:</p>
+<pre>Testimonial (reversed)
+Testimonial (compact)
+Testimonial (highlighted, reversed)</pre>
+        
+        <!-- Section 9 -->
+        <h2 class="section-header" id="section9">9. Exercise Solutions</h2>
+        
+        <h3 class="subsection">Solution 4.1: Feature Block</h3>
+        
+<pre>// blocks/feature/feature.js
+
+export default function decorate(block) {
+  const rows = [...block.children];
+  
+  // Clear block
+  block.innerHTML = '';
+  
+  // Create feature structure
+  const container = document.createElement('div');
+  container.className = 'feature-container';
+  
+  // Process rows: icon, heading, description, link
+  rows.forEach((row, index) => {
+    const content = row.textContent.trim();
+    const element = document.createElement('div');
+    
+    switch(index) {
+      case 0: // Icon
+        element.className = 'feature-icon';
+        element.innerHTML = `&lt;span class="icon"&gt;${content}&lt;/span&gt;`;
+        break;
+      case 1: // Heading
+        element.className = 'feature-heading';
+        element.innerHTML = `&lt;h3&gt;${content}&lt;/h3&gt;`;
+        break;
+      case 2: // Description
+        element.className = 'feature-description';
+        element.innerHTML = `&lt;p&gt;${content}&lt;/p&gt;`;
+        break;
+      case 3: // Link (optional)
+        const link = row.querySelector('a');
+        if (link) {
+          element.className = 'feature-link';
+          link.className = 'button';
+          element.append(link);
+        }
+        break;
+    }
+    
+    if (element.innerHTML) {
+      container.append(element);
+    }
+  });
+  
+  block.append(container);
+}</pre>
+
+<pre>/* blocks/feature/feature.css */
+
+.feature {
+  padding: 2rem;
+  text-align: center;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+  border-radius: 12px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+.feature .feature-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.feature .feature-heading h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--heading-color, #1a1a2e);
+}
+
+.feature .feature-description p {
+  color: var(--text-color, #555);
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.feature .feature-link .button {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background-color: var(--link-color, #035fe6);
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+}</pre>
+        
+        <h3 class="subsection">Solution 5.1: Image Optimization Enhancement</h3>
+        
+<pre>// blocks/testimonial/testimonial.js (updated)
+
+import { createOptimizedPicture } from '../../scripts/aem.js';
+
+export default function decorate(block) {
+  const rows = [...block.children];
+  const contentRow = rows[0];
+  if (!contentRow) return;
+  
+  const cells = [...contentRow.children];
+  const imageCell = cells[0];
+  const textCell = cells[1];
+  
+  block.innerHTML = '';
+  
+  const container = document.createElement('div');
+  container.className = 'testimonial-container';
+  
+  // Image section with optimization
+  const imageWrapper = document.createElement('div');
+  imageWrapper.className = 'testimonial-image';
+  
+  const img = imageCell?.querySelector('img');
+  if (img) {
+    const optimized = createOptimizedPicture(
+      img.src,
+      img.alt || 'Customer photo',
+      false, // lazy load
+      [
+        { media: '(min-width: 768px)', width: '200' },
+        { width: '150' }
+      ]
+    );
+    imageWrapper.append(optimized);
+  }
+  
+  // Quote section (unchanged)
+  const quoteWrapper = document.createElement('div');
+  quoteWrapper.className = 'testimonial-quote';
+  
+  const paragraphs = textCell?.querySelectorAll('p') || [];
+  paragraphs.forEach((p, index) => {
+    p.className = index === paragraphs.length - 1 
+      ? 'testimonial-attribution' 
+      : 'testimonial-text';
+    quoteWrapper.append(p);
+  });
+  
+  container.append(imageWrapper, quoteWrapper);
+  block.append(container);
+}</pre>
+        
+        <h3 class="subsection">Solution 6.1: Testimonial Variants</h3>
+        
+<pre>/* blocks/testimonial/testimonial.css (additions) */
+
+/* Variant: reversed */
+.testimonial.reversed .testimonial-container {
+  flex-direction: row-reverse;
+}
+
+/* Variant: compact */
+.testimonial.compact {
+  padding: 2rem 1rem;
+}
+
+.testimonial.compact .testimonial-image img {
+  width: 100px;
+  height: 100px;
+}
+
+.testimonial.compact .testimonial-text {
+  font-size: 1.125rem;
+}
+
+.testimonial.compact .testimonial-container {
+  gap: 1.5rem;
+}
+
+/* Variant: highlighted */
+.testimonial.highlighted {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.testimonial.highlighted .testimonial-text,
+.testimonial.highlighted .testimonial-attribution {
+  color: white;
+}
+
+.testimonial.highlighted .testimonial-image img {
+  border-color: white;
+}
+
+/* Combined: highlighted + reversed */
+.testimonial.highlighted.reversed {
+  background: linear-gradient(225deg, #667eea 0%, #764ba2 100%);
+}</pre>
+        
+        <!-- Section 10 -->
+        <h2 class="section-header" id="section10">10. Troubleshooting Guide</h2>
+        
+        <h3 class="subsection">Common Issues and Solutions</h3>
+        
+        <p><strong>Issue: Block not loading</strong></p>
+<pre>Symptoms:
+- Block div exists but no decoration applied
+- Console shows "Failed to load block: [name]"
+
+Solutions:
+1. Check file names match exactly: 
+   blocks/hero/hero.js (not Hero.js or hero-block.js)
+   
+2. Verify export default:
+   ✗ function decorate(block) { }
+   ✓ export default function decorate(block) { }
+   
+3. Check for JavaScript syntax errors in console
+
+4. Ensure block table name matches folder name</pre>
+        
+        <p><strong>Issue: CSS not applying</strong></p>
+<pre>Symptoms:
+- JavaScript runs but styles missing
+- Elements visible but unstyled
+
+Solutions:
+1. Check CSS file name matches: blocks/hero/hero.css
+
+2. Verify selector specificity:
+   ✗ .hero-content { }  /* Too generic */
+   ✓ .hero .hero-content { }  /* Scoped to block */
+   
+3. Check for CSS syntax errors (missing semicolons, brackets)
+
+4. Inspect computed styles in DevTools to see overrides</pre>
+        
+        <p><strong>Issue: Images not optimized</strong></p>
+<pre>Symptoms:
+- Images load but no srcset
+- Large images on mobile
+
+Solutions:
+1. Ensure correct import:
+   import { createOptimizedPicture } from '../../scripts/aem.js';
+   
+2. Replace picture element, not just img:
+   img.closest('picture').replaceWith(optimized);
+   
+3. Check image URL is accessible</pre>
+        
+        <p><strong>Issue: Block variants not working</strong></p>
+<pre>Symptoms:
+- Variant class not appearing
+- Styles not applying to variant
+
+Solutions:
+1. Check document syntax: Hero (dark) not Hero [dark]
+
+2. Verify class is added (inspect element):
+   class="hero dark block"
+   
+3. CSS selector must include block class:
+   ✗ .dark { }
+   ✓ .hero.dark { }</pre>
+        
+        <h3 class="subsection">Debugging Tips</h3>
+        <ul>
+            <li>Add <code>console.log()</code> at start of decorate() to confirm execution</li>
+            <li>Use <code>debugger;</code> statement to pause and inspect</li>
+            <li>Check Network tab for failed resource loads</li>
+            <li>Use Elements panel to verify DOM structure</li>
+            <li>Test in incognito to rule out caching issues</li>
+        </ul>
+        
+        <hr style="margin: 50px 0; border: none; border-top: 2px solid var(--adobe-red);">
+        
+        <p style="text-align: center; font-size: 1.2rem; color: var(--dark-gray);">
+            <strong>End of Trainer Guide</strong><br>
+            <em>Good luck with your training session!</em>
+        </p>
+        
+        <a href="#" class="back-link">↑ Back to Top</a>
+    </div>
+    
+    <script>
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
