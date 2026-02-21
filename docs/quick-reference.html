@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDS Developer Quick Reference &amp; Best Practices</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --adobe-red: #FA0F00;
+            --dark: #1a1a2e;
+            --dark2: #16213e;
+            --text: #e8e8e8;
+            --muted: #a0a0b0;
+            --accent: #4ECDC4;
+            --card-bg: rgba(255, 255, 255, 0.04);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --code-bg: #0d1117;
+            --code-border: #30363d;
+            --green: #3fb950;
+            --red: #f85149;
+            --yellow: #d29922;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, var(--dark) 0%, var(--dark2) 100%);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 40px 0 50px;
+            border-bottom: 1px solid var(--card-border);
+            margin-bottom: 50px;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            color: var(--adobe-red);
+            margin-bottom: 8px;
+        }
+
+        .header h2 {
+            font-size: 1.3rem;
+            font-weight: 400;
+            color: var(--muted);
+        }
+
+        .header .badge {
+            display: inline-block;
+            margin-top: 16px;
+            background: rgba(78, 205, 196, 0.15);
+            color: var(--accent);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
+        /* Nav */
+        .nav-bar {
+            position: sticky;
+            top: 0;
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--card-border);
+            z-index: 100;
+            padding: 12px 0;
+            margin: -10px -20px 40px;
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+
+        .nav-bar .nav-inner {
+            max-width: 960px;
+            margin: 0 auto;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .nav-bar a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .nav-bar a:hover {
+            color: white;
+            background: rgba(255,255,255,0.08);
+        }
+
+        .nav-bar .back {
+            color: var(--adobe-red);
+            font-weight: 600;
+            margin-right: auto;
+        }
+
+        /* Sections */
+        .section {
+            margin-bottom: 50px;
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            color: var(--accent);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid rgba(78, 205, 196, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title .num {
+            background: var(--accent);
+            color: var(--dark);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .subsection {
+            font-size: 1.05rem;
+            color: var(--text);
+            margin: 25px 0 12px;
+            font-weight: 600;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 20px 24px;
+            margin: 16px 0;
+        }
+
+        .card h4 {
+            color: var(--accent);
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        /* Do/Don't */
+        .do-dont {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 16px 0;
+        }
+
+        @media (max-width: 700px) {
+            .do-dont { grid-template-columns: 1fr; }
+        }
+
+        .do-box, .dont-box {
+            border-radius: 10px;
+            padding: 18px 20px;
+            border: 1px solid;
+        }
+
+        .do-box {
+            background: rgba(63, 185, 80, 0.06);
+            border-color: rgba(63, 185, 80, 0.25);
+        }
+
+        .dont-box {
+            background: rgba(248, 81, 73, 0.06);
+            border-color: rgba(248, 81, 73, 0.25);
+        }
+
+        .do-box h4 { color: var(--green); }
+        .dont-box h4 { color: var(--red); }
+
+        .do-box li, .dont-box li {
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+
+        /* Code */
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--code-border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            font-size: 12.5px;
+            line-height: 1.6;
+            margin: 12px 0;
+            color: #c9d1d9;
+        }
+
+        pre .comment { color: #8b949e; }
+        pre .keyword { color: #ff7b72; }
+        pre .string { color: #a5d6ff; }
+        pre .func { color: #d2a8ff; }
+
+        code {
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            background: rgba(255,255,255,0.06);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: #f0883e;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin: 10px 0;
+            padding-left: 22px;
+        }
+
+        li {
+            margin-bottom: 6px;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        li strong { color: var(--text); }
+
+        p {
+            margin-bottom: 12px;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        /* Tip box */
+        .tip {
+            background: rgba(210, 153, 34, 0.08);
+            border: 1px solid rgba(210, 153, 34, 0.3);
+            border-left: 4px solid var(--yellow);
+            border-radius: 6px;
+            padding: 14px 18px;
+            margin: 16px 0;
+            font-size: 0.9rem;
+        }
+
+        .tip strong { color: var(--yellow); }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 0.88rem;
+        }
+
+        th, td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        th {
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td { color: var(--muted); }
+        td code { font-size: 0.82em; }
+
+        /* Print */
+        @media print {
+            body { background: white; color: #333; }
+            .nav-bar { display: none; }
+            pre { border-color: #ccc; color: #333; background: #f6f6f6; }
+        }
+
+        .file-label {
+            display: inline-block;
+            background: rgba(78, 205, 196, 0.12);
+            color: var(--accent);
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 0.78rem;
+            font-family: 'SF Mono', monospace;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="nav-bar">
+    <div class="nav-inner">
+        <a href="index.html" class="back">← Training Home</a>
+        <a href="#project">Project</a>
+        <a href="#block">Block Dev</a>
+        <a href="#component">Component JSON</a>
+        <a href="#css">CSS</a>
+        <a href="#js">JavaScript</a>
+        <a href="#github">GitHub</a>
+        <a href="#perf">Performance</a>
+        <a href="#debug">Debug</a>
+    </div>
+</div>
+
+<div class="container">
+
+    <div class="header">
+        <h1>EDS Developer Quick Reference</h1>
+        <h2>Best Practices &amp; Code Snippets</h2>
+        <span class="badge">Based on aem.live/docs/dev-collab-and-good-practices</span>
+    </div>
+
+    <!-- 1. Project Structure -->
+    <div class="section" id="project">
+        <h2 class="section-title"><span class="num">1</span> Project Structure</h2>
+
+<pre>project-root/
+├── blocks/                  # All custom blocks
+│   ├── bio-cards/
+│   │   ├── bio-cards.js     # Block JavaScript
+│   │   └── bio-cards.css    # Block styles
+│   └── hero/
+│       ├── hero.js
+│       └── hero.css
+├── scripts/
+│   ├── aem.js               # Core utilities (DON'T MODIFY)
+│   ├── scripts.js            # Custom scripts
+│   └── delayed.js            # Lazy-loaded (analytics, etc.)
+├── styles/
+│   ├── styles.css            # Global styles
+│   └── fonts.css             # Font definitions
+├── head.html                 # &lt;head&gt; contents
+├── header.html               # Site header
+├── footer.html               # Site footer
+└── 404.html                  # Error page</pre>
+
+        <div class="tip">
+            <strong>Rule:</strong> Block folder name, <code>.js</code> file, and <code>.css</code> file must all match the block name exactly. <code>bio-cards/bio-cards.js</code> + <code>bio-cards/bio-cards.css</code>
+        </div>
+    </div>
+
+    <!-- 2. Block Development -->
+    <div class="section" id="block">
+        <h2 class="section-title"><span class="num">2</span> Block Development</h2>
+
+        <h3 class="subsection">Minimal Block Template</h3>
+        <span class="file-label">blocks/my-block/my-block.js</span>
+<pre>export default function decorate(block) {
+  [...block.children].forEach((row, i) =&gt; {
+    const cells = [...row.children];
+    // row = each content row, cells = columns within
+  });
+}</pre>
+
+        <h3 class="subsection">Add Semantic Classes (Bio Cards Pattern)</h3>
+        <span class="file-label">blocks/bio-cards/bio-cards.js</span>
+<pre>export default function decorate(block) {
+  [...block.children].forEach(card =&gt; {
+    card.classList.add('bio-cards-slide');
+
+    const [imgWrapper, contentWrapper] = [...card.children];
+    if (!imgWrapper || !contentWrapper) return;
+
+    imgWrapper.classList.add('bio-card-img');
+    contentWrapper.classList.add('bio-card-content');
+
+    const [name, designation, description, buttonContainer] = [
+      ...contentWrapper.children,
+    ];
+
+    name?.classList.add('bio-card-name');
+    designation?.classList.add('bio-card-designation');
+    description?.classList.add('bio-card-description');
+    buttonContainer?.classList.add('bio-card-btn-text');
+  });
+}</pre>
+
+        <h3 class="subsection">Extract &amp; Restructure Pattern</h3>
+<pre>export default function decorate(block) {
+  const heading = block.querySelector('h1, h2, h3');
+  const paragraph = block.querySelector('p');
+  const image = block.querySelector('picture');
+
+  block.innerHTML = '';
+
+  const content = document.createElement('div');
+  content.className = 'hero-content';
+  if (heading) content.append(heading);
+  if (paragraph) content.append(paragraph);
+
+  const media = document.createElement('div');
+  media.className = 'hero-media';
+  if (image) media.append(image);
+
+  block.append(content, media);
+}</pre>
+
+        <h3 class="subsection">Image Optimization</h3>
+<pre>import { createOptimizedPicture } from '../../scripts/aem.js';
+
+export default function decorate(block) {
+  block.querySelectorAll('img').forEach((img) =&gt; {
+    const optimized = createOptimizedPicture(
+      img.src,
+      img.alt || '',
+      false,   // eager = true for above-fold
+      [
+        { media: '(min-width: 900px)', width: '750' },
+        { width: '400' }
+      ]
+    );
+    img.closest('picture')?.replaceWith(optimized);
+  });
+}</pre>
+
+        <h3 class="subsection">Icon Decoration</h3>
+<pre>import { decorateIcons } from '../../scripts/aem.js';
+
+export default async function decorate(block) {
+  // Authors write :checkmark: in the document
+  // EDS converts to &lt;span class="icon icon-checkmark"&gt;&lt;/span&gt;
+  await decorateIcons(block);
+}</pre>
+
+        <h3 class="subsection">Async Data Fetching</h3>
+<pre>export default async function decorate(block) {
+  block.classList.add('loading');
+  try {
+    const resp = await fetch('/api/data.json');
+    const data = await resp.json();
+    data.items.forEach(item =&gt; {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.textContent = item.title;
+      block.append(card);
+    });
+  } catch (err) {
+    console.error('Failed to load:', err);
+  } finally {
+    block.classList.remove('loading');
+  }
+}</pre>
+
+        <h3 class="subsection">Block Variants</h3>
+<pre>// Document: Hero (dark, centered)
+// Rendered:  class="hero dark centered block"
+
+export default function decorate(block) {
+  const isDark = block.classList.contains('dark');
+  const isCentered = block.classList.contains('centered');
+
+  if (isDark) {
+    block.querySelectorAll('.icon').forEach(i =&gt; {
+      i.style.color = 'white';
+    });
+  }
+}</pre>
+
+        <h3 class="subsection">Block Communication (Custom Events)</h3>
+<pre>// Dispatch
+block.dispatchEvent(new CustomEvent('product-selected', {
+  detail: { id: '123' },
+  bubbles: true
+}));
+
+// Listen
+document.addEventListener('product-selected', (e) =&gt; {
+  console.log(e.detail.id);
+});</pre>
+    </div>
+
+    <!-- 3. Component Definition -->
+    <div class="section" id="component">
+        <h2 class="section-title"><span class="num">3</span> Component Definition (Universal Editor)</h2>
+
+        <p>Complete copy-paste-ready JSON for the Bio Cards block:</p>
+
+<pre>{
+    "definitions": [
+        {
+            "title": "Bio Cards",
+            "id": "bio-cards",
+            "plugins": {
+                "xwalk": {
+                    "page": {
+                        "resourceType": "core/franklin/components/block/v1/block",
+                        "template": {
+                            "name": "Bio Cards",
+                            "model": "bio-cards",
+                            "filter": "bio-cards"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "title": "Bio Card",
+            "id": "bio-card",
+            "plugins": {
+                "xwalk": {
+                    "page": {
+                        "resourceType": "core/franklin/components/block/v1/block/item",
+                        "template": {
+                            "name": "Bio Card",
+                            "model": "bio-card"
+                        }
+                    }
+                }
+            }
+        }
+    ],
+    "models": [
+        {
+            "id": "bio-cards",
+            "fields": [
+                {
+                    "component": "multiselect",
+                    "name": "classes",
+                    "label": "Classes",
+                    "options": [
+                        {
+                            "name": "Cards Style",
+                            "children": [
+                                {
+                                    "name": "Bio Cards",
+                                    "value": "bio-cards"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "bio-card",
+            "fields": [
+                {
+                    "component": "reference",
+                    "valueType": "string",
+                    "name": "col1_image",
+                    "label": "Image",
+                    "multi": false
+                },
+                {
+                    "component": "text",
+                    "valueType": "string",
+                    "name": "col1_imageAlt",
+                    "label": "Image Alt",
+                    "value": ""
+                },
+                {
+                    "component": "text",
+                    "name": "col2_person",
+                    "value": "",
+                    "label": "Name",
+                    "valueType": "string"
+                },
+                {
+                    "component": "richtext",
+                    "name": "col2_designation",
+                    "value": "",
+                    "label": "Designation",
+                    "valueType": "string"
+                },
+                {
+                    "component": "richtext",
+                    "name": "col2_description",
+                    "value": "",
+                    "label": "Description",
+                    "valueType": "string"
+                },
+                {
+                    "component": "aem-content",
+                    "name": "col2_link",
+                    "label": "Link"
+                },
+                {
+                    "component": "text",
+                    "name": "col2_linkText",
+                    "label": "Text"
+                },
+                {
+                    "component": "text",
+                    "name": "col2_linkTitle",
+                    "label": "Title"
+                },
+                {
+                    "component": "select",
+                    "name": "col2_linkType",
+                    "label": "Type",
+                    "options": [
+                        {
+                            "name": "default",
+                            "value": ""
+                        },
+                        {
+                            "name": "primary",
+                            "value": "primary"
+                        },
+                        {
+                            "name": "secondary",
+                            "value": "secondary"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "filters": [
+        {
+            "id": "bio-cards",
+            "components": [
+                "bio-card"
+            ]
+        }
+    ]
+}</pre>
+
+        <h3 class="subsection">Field Name Convention</h3>
+        <table>
+            <thead>
+                <tr><th>Prefix</th><th>Maps To</th><th>Example</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><code>col1_</code></td><td>First table column (image cell)</td><td><code>col1_image</code>, <code>col1_imageAlt</code></td></tr>
+                <tr><td><code>col2_</code></td><td>Second table column (content cell)</td><td><code>col2_person</code>, <code>col2_designation</code></td></tr>
+            </tbody>
+        </table>
+
+        <h3 class="subsection">Common Field Components</h3>
+        <table>
+            <thead>
+                <tr><th>Component</th><th>Use For</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><code>text</code></td><td>Plain text input</td></tr>
+                <tr><td><code>richtext</code></td><td>Formatted text with HTML</td></tr>
+                <tr><td><code>reference</code></td><td>Asset picker (images, files)</td></tr>
+                <tr><td><code>aem-content</code></td><td>Content/page link picker</td></tr>
+                <tr><td><code>select</code></td><td>Dropdown single select</td></tr>
+                <tr><td><code>multiselect</code></td><td>Multi-option select (classes, tags)</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 4. CSS Best Practices -->
+    <div class="section" id="css">
+        <h2 class="section-title"><span class="num">4</span> CSS Best Practices</h2>
+
+        <div class="do-dont">
+            <div class="do-box">
+                <h4>&#10003; Do</h4>
+                <ul>
+                    <li>Scope selectors to block: <code>.hero .hero-content</code></li>
+                    <li>Use CSS variables from global styles</li>
+                    <li>Write mobile-first, add <code>min-width</code> media queries</li>
+                    <li>Use ARIA attributes for styling state</li>
+                    <li>Keep selectors simple and readable</li>
+                    <li>Use standard breakpoints: 600, 900, 1200px</li>
+                </ul>
+            </div>
+            <div class="dont-box">
+                <h4>&#10007; Don't</h4>
+                <ul>
+                    <li>Use unscoped selectors: <code>h1 { }</code></li>
+                    <li>Use <code>!important</code> (almost never needed)</li>
+                    <li>Mix <code>min-width</code> and <code>max-width</code></li>
+                    <li>Write overly complex nested selectors</li>
+                    <li>Change linting config for personal preference</li>
+                    <li>Add preprocessors (Sass/Less) without team buy-in</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3 class="subsection">Block CSS Template</h3>
+        <span class="file-label">blocks/bio-cards/bio-cards.css</span>
+<pre>/* Base layout */
+.our-team .bio-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--text-5xl);
+}
+
+.our-team .bio-cards .bio-cards-slide {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: center;
+}
+
+.our-team .bio-cards .bio-card-img {
+  width: 28%;
+}
+
+.our-team .bio-cards .bio-card-content {
+  background-color: #fff;
+  padding: 3rem 50px;
+  max-width: 57%;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .our-team .bio-cards .bio-cards-slide {
+    flex-direction: column;
+  }
+  .our-team .bio-cards .bio-card-img {
+    width: 100%;
+    height: auto;
+  }
+  .our-team .bio-cards .bio-card-content {
+    max-width: 100%;
+  }
+}</pre>
+
+        <h3 class="subsection">Variant CSS Pattern</h3>
+<pre>/* Base block - works without any variant */
+.hero {
+  min-height: 50vh;
+  padding: 2rem;
+}
+
+/* Variant: dark */
+.hero.dark {
+  background-color: #1a1a2e;
+  color: white;
+}
+
+/* Variant: centered */
+.hero.centered {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Combined variant */
+.hero.dark.centered { /* specific overrides */ }</pre>
+    </div>
+
+    <!-- 5. JavaScript Best Practices -->
+    <div class="section" id="js">
+        <h2 class="section-title"><span class="num">5</span> JavaScript Best Practices</h2>
+
+        <div class="do-dont">
+            <div class="do-box">
+                <h4>&#10003; Do</h4>
+                <ul>
+                    <li>Always <code>export default function decorate(block)</code></li>
+                    <li>Use modern ES6+ (dynamic imports supported)</li>
+                    <li>Keep blocks focused &mdash; one responsibility</li>
+                    <li>Use event delegation for dynamic content</li>
+                    <li>Lazy load 3rd party libs with <code>loadScript()</code></li>
+                    <li>Keep the project build-less</li>
+                </ul>
+            </div>
+            <div class="dont-box">
+                <h4>&#10007; Don't</h4>
+                <ul>
+                    <li>Modify <code>aem.js</code> directly</li>
+                    <li>Import large frameworks for simple layouts</li>
+                    <li>Use <code>innerHTML</code> with untrusted content</li>
+                    <li>Add blocking operations in <code>decorate()</code></li>
+                    <li>Add 3rd party scripts to <code>head.html</code></li>
+                    <li>Create memory leaks with unremoved listeners</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3 class="subsection">Loading Phases</h3>
+<pre>async function loadPage() {
+  await loadEager(document);   // Critical: above-fold blocks
+  await loadLazy(document);    // Below-fold content
+  loadDelayed();               // Analytics, non-critical JS
+}</pre>
+
+        <h3 class="subsection">Key Utility Functions (aem.js)</h3>
+        <table>
+            <thead>
+                <tr><th>Function</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><code>createOptimizedPicture(src, alt, eager, breakpoints)</code></td><td>Responsive images with srcset</td></tr>
+                <tr><td><code>decorateIcons(block)</code></td><td>Load SVG icons from /icons/</td></tr>
+                <tr><td><code>loadBlocks(main)</code></td><td>Discover and load block JS/CSS</td></tr>
+                <tr><td><code>toClassName(text)</code></td><td>Convert text to valid CSS class</td></tr>
+                <tr><td><code>getMetadata(name)</code></td><td>Read page metadata</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 6. GitHub Workflow -->
+    <div class="section" id="github">
+        <h2 class="section-title"><span class="num">6</span> GitHub Workflow</h2>
+
+        <div class="do-dont">
+            <div class="do-box">
+                <h4>&#10003; Do</h4>
+                <ul>
+                    <li><strong>Keep repos public</strong> &mdash; enables free PSI checks and community reviews</li>
+                    <li><strong>Use pull requests</strong> &mdash; never push directly to <code>main</code> in production</li>
+                    <li><strong>Include preview URLs</strong> in PRs so reviewers can see changes live</li>
+                    <li><strong>Keep PRs small</strong> &mdash; scaled trunk-based development</li>
+                    <li><strong>Merge your own PRs</strong> after approval (you know when it's ready)</li>
+                    <li><strong>Protect <code>main</code> branch</strong> &mdash; require at least 1 approval</li>
+                    <li><strong>Keep dependencies up to date</strong> (use Renovate)</li>
+                </ul>
+            </div>
+            <div class="dont-box">
+                <h4>&#10007; Don't</h4>
+                <ul>
+                    <li>Submit PRs with linting errors (eslint/stylelint)</li>
+                    <li>Submit PRs without green Lighthouse scores</li>
+                    <li>Push into other developers' branches uninvited</li>
+                    <li>Create long-lived feature branches</li>
+                    <li>Change linting rules without strong justification</li>
+                    <li>Commit binaries or content assets to git</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tip">
+            <strong>PR Etiquette:</strong> Include page URLs where the reviewer can see your block in action. Use Draft PRs for work in progress. Keep scope limited to what's described in the title.
+        </div>
+    </div>
+
+    <!-- 7. Performance -->
+    <div class="section" id="perf">
+        <h2 class="section-title"><span class="num">7</span> Performance Checklist</h2>
+
+        <div class="card">
+            <h4>Target: Lighthouse 100/100 (Mobile &amp; Desktop)</h4>
+            <ul>
+                <li><strong>Images:</strong> Use <code>createOptimizedPicture()</code> &mdash; set <code>eager=true</code> only for above-fold</li>
+                <li><strong>CSS:</strong> Use CSS for animations, not JavaScript</li>
+                <li><strong>JS:</strong> No frameworks in the critical path (avoid LCP/TBT impact)</li>
+                <li><strong>3rd Party:</strong> Load via <code>loadScript()</code> in specific blocks, not <code>head.html</code></li>
+                <li><strong>Lazy Load:</strong> Use <code>IntersectionObserver</code> for heavy libraries</li>
+                <li><strong>Bundle Size:</strong> Keep files small &mdash; minification rarely needed with block architecture</li>
+                <li><strong>Head:</strong> Keep <code>&lt;head&gt;</code> minimal &mdash; no GTM, no inline scripts</li>
+                <li><strong>Icons:</strong> Use optimized SVGs (SVGO), remove hardcoded colors</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 8. Content Practices -->
+    <div class="section" id="content">
+        <h2 class="section-title"><span class="num">8</span> Content-First Development</h2>
+
+        <div class="card">
+            <ul>
+                <li><strong>Start with content:</strong> Create sample content in Word/Google Docs before writing code</li>
+                <li><strong>Use drafts:</strong> Work in <code>/drafts/yourname/</code> &mdash; don't modify live pages during dev</li>
+                <li><strong>Backwards compatible:</strong> New code should not break existing content</li>
+                <li><strong>No binaries in git:</strong> Use content for images, only commit code-referenced SVGs</li>
+                <li><strong>Authorable strings:</strong> User-facing text should come from content (placeholders/spreadsheets), not hardcoded in JS/CSS</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 9. Debugging -->
+    <div class="section" id="debug">
+        <h2 class="section-title"><span class="num">9</span> Debugging Quick Reference</h2>
+
+        <h3 class="subsection">Block not loading?</h3>
+<pre>1. File names match?     blocks/hero/hero.js  ✓
+                         blocks/hero/Hero.js  ✗
+
+2. Export correct?       export default function decorate(block) { }  ✓
+                         function decorate(block) { }                 ✗
+
+3. Check console for syntax errors
+4. Block table name in document matches folder name?</pre>
+
+        <h3 class="subsection">CSS not applying?</h3>
+<pre>1. File exists?          blocks/hero/hero.css  ✓
+
+2. Selectors scoped?     .hero .hero-content { }  ✓
+                         .hero-content { }         ✗ (too generic)
+
+3. Check DevTools computed styles for overrides
+4. Look for CSS syntax errors (missing ; or } )</pre>
+
+        <h3 class="subsection">Images not optimized?</h3>
+<pre>1. Correct import?
+   import { createOptimizedPicture } from '../../scripts/aem.js';
+
+2. Replace picture, not img:
+   img.closest('picture')?.replaceWith(optimized);
+
+3. Check image URL is accessible</pre>
+
+        <h3 class="subsection">Useful Debug Snippets</h3>
+<pre>// Add at start of decorate() to confirm execution
+console.log('Block loaded:', block);
+console.log('Children:', [...block.children]);
+
+// Pause execution to inspect in DevTools
+debugger;
+
+// Check block variant classes
+console.log('Classes:', [...block.classList]);</pre>
+    </div>
+
+    <!-- 10. Quick Command Reference -->
+    <div class="section" id="commands">
+        <h2 class="section-title"><span class="num">10</span> Quick Commands</h2>
+
+        <h3 class="subsection">Create a New Block</h3>
+<pre>cd blocks/
+mkdir my-block
+touch my-block/my-block.js my-block/my-block.css</pre>
+
+        <h3 class="subsection">Local Development</h3>
+<pre>npm start                      # Start local dev server
+npx aem up                     # Alternative AEM CLI</pre>
+
+        <h3 class="subsection">Linting</h3>
+<pre>npm run lint:js                # ESLint (airbnb-base)
+npm run lint:css               # Stylelint</pre>
+
+        <h3 class="subsection">Reference Links</h3>
+        <table>
+            <tbody>
+                <tr><td><strong>Setup Tutorial</strong></td><td><a href="http://www.aem.live/developer/ue-tutorial" target="_blank" style="color: var(--accent);">aem.live/developer/ue-tutorial</a></td></tr>
+                <tr><td><strong>Project Anatomy</strong></td><td><a href="https://www.aem.live/developer/anatomy-of-a-project" target="_blank" style="color: var(--accent);">aem.live/developer/anatomy-of-a-project</a></td></tr>
+                <tr><td><strong>Block Collection</strong></td><td><a href="https://www.aem.live/developer/block-collection" target="_blank" style="color: var(--accent);">aem.live/developer/block-collection</a></td></tr>
+                <tr><td><strong>Best Practices</strong></td><td><a href="https://www.aem.live/docs/dev-collab-and-good-practices" target="_blank" style="color: var(--accent);">aem.live/docs/dev-collab-and-good-practices</a></td></tr>
+                <tr><td><strong>Boilerplate Repo</strong></td><td><a href="https://github.com/adobe-rnd/aem-boilerplate-xwalk" target="_blank" style="color: var(--accent);">github.com/adobe-rnd/aem-boilerplate-xwalk</a></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', function(e) {
+        e.preventDefault();
+        const t = document.querySelector(this.getAttribute('href'));
+        if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+});
+</script>
+</body>
+</html>
