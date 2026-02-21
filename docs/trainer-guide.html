@@ -818,28 +818,111 @@ export default function decorate(block) {
         <h3 class="subsection">4.1 Planning Our Block</h3>
         
         <div class="trainer-box say">
-            <span class="label">[SAY]</span> Let's build a "testimonial" block from scratch. This will display customer quotes with photos and names. We'll go through the complete process: planning, creating files, writing JavaScript, adding CSS, and testing.
+            <span class="label">[SAY]</span> Let's build a "Bio Cards" block from scratch. This will display team member profiles with photos, names, designations, and descriptions. We'll go through the complete process: planning, defining the component model, creating files, writing JavaScript, adding CSS, and testing.
         </div>
         
         <p><strong>Block Requirements:</strong></p>
         <ul>
-            <li>Display a customer quote/testimonial</li>
-            <li>Show customer photo (circular)</li>
-            <li>Show customer name and title</li>
-            <li>Support multiple testimonials in a carousel (stretch goal)</li>
+            <li>Display team member bio cards with image and content</li>
+            <li>Show person name, designation, and description</li>
+            <li>Include a CTA button link</li>
+            <li>Support multiple bio cards in a single block</li>
         </ul>
         
         <p><strong>Expected Document Structure:</strong></p>
 <pre>┌──────────────────────────────────────────────────────────┐
-│ Testimonial                                               │
+│ Bio Cards                                                 │
 ├─────────────────────────┬────────────────────────────────┤
-│ [Customer Photo]        │ "This product changed my life! │
-│                         │ I can't imagine working        │
-│                         │ without it."                   │
-│                         │ - Jane Smith, CEO              │
+│ [Person Photo]          │ John Doe                       │
+│                         │ CEO &amp; Founder                  │
+│                         │ • Led company growth...        │
+│                         │ [Read More →]                  │
+├─────────────────────────┬────────────────────────────────┤
+│ [Person Photo]          │ Jane Smith                     │
+│                         │ CTO                            │
+│                         │ • Architected the platform...  │
+│                         │ [Read More →]                  │
 └─────────────────────────┴────────────────────────────────┘</pre>
         
-        <h3 class="subsection">4.2 Step-by-Step: Create the Block Files</h3>
+        <h3 class="subsection">4.2 Component Definition (Universal Editor)</h3>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Before writing block code, we need to define the component model for the Universal Editor. This tells authors what fields are available when creating Bio Cards content. The definition goes in your component-definition.json file.
+        </div>
+        
+        <p><strong>Component Definition JSON:</strong></p>
+<pre>// component-definition.json (add to definitions array)
+{
+  "title": "Bio Cards",
+  "id": "bio-cards",
+  "plugins": {
+    "xwalk": {
+      "page": {
+        "resourceType": "core/franklin/components/block/v1/block",
+        "template": {
+          "name": "Bio Cards",
+          "model": "bio-cards",
+          "filter": "bio-cards"
+        }
+      }
+    }
+  }
+}
+// Also add the child item definition:
+{
+  "title": "Bio Card",
+  "id": "bio-card",
+  "plugins": {
+    "xwalk": {
+      "page": {
+        "resourceType": "core/franklin/components/block/v1/block/item",
+        "template": {
+          "name": "Bio Card",
+          "model": "bio-card"
+        }
+      }
+    }
+  }
+}</pre>
+        
+        <p><strong>Model Definition:</strong></p>
+<pre>// component-models.json - Bio Card model
+{
+  "id": "bio-card",
+  "fields": [
+    { "component": "reference", "valueType": "string",
+      "name": "col1_image", "label": "Image", "multi": false },
+    { "component": "text", "valueType": "string",
+      "name": "col1_imageAlt", "label": "Image Alt", "value": "" },
+    { "component": "text", "name": "col2_person",
+      "value": "", "label": "Name", "valueType": "string" },
+    { "component": "richtext", "name": "col2_designation",
+      "value": "", "label": "Designation", "valueType": "string" },
+    { "component": "richtext", "name": "col2_description",
+      "value": "", "label": "Description", "valueType": "string" },
+    { "component": "aem-content", "name": "col2_link", "label": "Link" },
+    { "component": "text", "name": "col2_linkText", "label": "Text" },
+    { "component": "text", "name": "col2_linkTitle", "label": "Title" },
+    { "component": "select", "name": "col2_linkType", "label": "Type",
+      "options": [
+        { "name": "default", "value": "" },
+        { "name": "primary", "value": "primary" },
+        { "name": "secondary", "value": "secondary" }
+      ] }
+  ]
+}
+
+// Filter definition
+{
+  "id": "bio-cards",
+  "components": ["bio-card"]
+}</pre>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Notice the col1_ and col2_ prefixes in field names. These map to table columns in the rendered HTML. col1 fields go in the first cell (image), col2 fields go in the second cell (content).
+        </div>
+        
+        <h3 class="subsection">4.3 Step-by-Step: Create the Block Files</h3>
         
         <div class="trainer-box do">
             <span class="label">[DO]</span> Create the block folder and files together with participants. Go slowly and explain each step.
@@ -848,192 +931,207 @@ export default function decorate(block) {
         <p><strong>Step 1: Create the folder structure</strong></p>
 <pre># In terminal (or use VS Code)
 cd blocks/
-mkdir testimonial
-touch testimonial/testimonial.js
-touch testimonial/testimonial.css</pre>
+mkdir bio-cards
+touch bio-cards/bio-cards.js
+touch bio-cards/bio-cards.css</pre>
         
         <div class="trainer-box say">
-            <span class="label">[SAY]</span> Remember the naming rule: folder name, JS file, and CSS file must all match the block name exactly. Case matters!
+            <span class="label">[SAY]</span> Remember the naming rule: folder name, JS file, and CSS file must all match the block name exactly. Case matters! Also note how the block name uses hyphens, not camelCase.
         </div>
         
-        <h3 class="subsection">4.3 Writing the JavaScript</h3>
+        <h3 class="subsection">4.4 Writing the JavaScript</h3>
         
         <div class="trainer-box do">
             <span class="label">[DO]</span> Type this code live, explaining each section. Encourage participants to type along.
         </div>
         
         <p><strong>Step 2: Basic decorate function</strong></p>
-<pre>// blocks/testimonial/testimonial.js
+<pre>// blocks/bio-cards/bio-cards.js
 
 export default function decorate(block) {
-  console.log('Testimonial block loaded!');
+  console.log('Bio Cards block loaded!');
   console.log('Block element:', block);
-  console.log('Children:', block.children);
+  console.log('Children (cards):', block.children);
 }</pre>
         
         <div class="trainer-box check">
-            <span class="label">[CHECK]</span> Have everyone save and test. They should see the console logs when viewing a page with a testimonial block.
+            <span class="label">[CHECK]</span> Have everyone save and test. They should see the console logs when viewing a page with a Bio Cards block.
         </div>
         
-        <p><strong>Step 3: Extract content from rows</strong></p>
-<pre>// blocks/testimonial/testimonial.js
+        <p><strong>Step 3: Iterate cards and classify elements</strong></p>
+<pre>// blocks/bio-cards/bio-cards.js
 
 export default function decorate(block) {
-  // Get the rows (in our case, just one content row)
-  const rows = [...block.children];
-  
-  // First row contains our content
-  const contentRow = rows[0];
-  if (!contentRow) return;
-  
-  // Get the cells (columns) in the row
-  const cells = [...contentRow.children];
-  
-  // First cell: image, Second cell: quote and attribution
-  const imageCell = cells[0];
-  const textCell = cells[1];
-  
-  console.log('Image cell:', imageCell);
-  console.log('Text cell:', textCell);
-}</pre>
-        
-        <p><strong>Step 4: Restructure the DOM</strong></p>
-<pre>// blocks/testimonial/testimonial.js
+  // Each direct child is a bio card (one per row)
+  [...block.children].forEach(card => {
+    card.classList.add('bio-cards-slide');
 
-export default function decorate(block) {
-  const rows = [...block.children];
-  const contentRow = rows[0];
-  if (!contentRow) return;
-  
-  const cells = [...contentRow.children];
-  const imageCell = cells[0];
-  const textCell = cells[1];
-  
-  // Clear the block
-  block.innerHTML = '';
-  
-  // Create new structure
-  const container = document.createElement('div');
-  container.className = 'testimonial-container';
-  
-  // Image section
-  const imageWrapper = document.createElement('div');
-  imageWrapper.className = 'testimonial-image';
-  const picture = imageCell?.querySelector('picture');
-  if (picture) {
-    imageWrapper.append(picture);
-  }
-  
-  // Quote section
-  const quoteWrapper = document.createElement('div');
-  quoteWrapper.className = 'testimonial-quote';
-  
-  // Extract quote text and attribution
-  const paragraphs = textCell?.querySelectorAll('p') || [];
-  paragraphs.forEach((p, index) => {
-    if (index === paragraphs.length - 1) {
-      // Last paragraph is attribution
-      p.className = 'testimonial-attribution';
-    } else {
-      // Other paragraphs are quote text
-      p.className = 'testimonial-text';
-    }
-    quoteWrapper.append(p);
+    // Each card has two columns: image + content
+    const [imgWrapper, contentWrapper] = [...card.children];
+    if (!imgWrapper || !contentWrapper) return;
+
+    imgWrapper.classList.add('bio-card-img');
+    contentWrapper.classList.add('bio-card-content');
+
+    // Content wrapper contains: name, designation, description, button
+    const [name, designation, description, buttonContainer] = [
+      ...contentWrapper.children,
+    ];
+
+    name?.classList.add('bio-card-name');
+    designation?.classList.add('bio-card-designation');
+    description?.classList.add('bio-card-description');
+    buttonContainer?.classList.add('bio-card-btn-text');
+
+    console.log('Card:', { name, designation, description });
   });
-  
-  // Assemble the block
-  container.append(imageWrapper, quoteWrapper);
-  block.append(container);
 }</pre>
         
-        <h3 class="subsection">4.4 Adding the CSS</h3>
-        
-        <div class="trainer-box do">
-            <span class="label">[DO]</span> Now let's style our block. Add the CSS together.
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Notice we're not rebuilding the DOM from scratch. Instead we're adding semantic classes to the existing structure. This is a lighter approach that preserves author content.
         </div>
         
-<pre>/* blocks/testimonial/testimonial.css */
+        <p><strong>Step 4: Complete block code</strong></p>
+<pre>// blocks/bio-cards/bio-cards.js
 
-.testimonial {
-  padding: 4rem 2rem;
-  background-color: var(--light-color, #f5f5f5);
+export default function decorate(block) {
+  [...block.children].forEach(card => {
+    card.classList.add('bio-cards-slide');
+
+    const [imgWrapper, contentWrapper] = [...card.children];
+    if (!imgWrapper || !contentWrapper) return;
+
+    imgWrapper.classList.add('bio-card-img');
+    contentWrapper.classList.add('bio-card-content');
+
+    const [name, designation, description, buttonContainer] = [
+      ...contentWrapper.children,
+    ];
+
+    name?.classList.add('bio-card-name');
+    designation?.classList.add('bio-card-designation');
+    description?.classList.add('bio-card-description');
+    buttonContainer?.classList.add('bio-card-btn-text');
+  });
+}</pre>
+        
+        <h3 class="subsection">4.5 Adding the CSS</h3>
+        
+        <div class="trainer-box do">
+            <span class="label">[DO]</span> Now let's style our block. Add the CSS together. This block has several styling layers: card layout, content styles, and responsive behavior.
+        </div>
+        
+        <div class="trainer-box say">
+            <span class="label">[SAY]</span> Bio Cards CSS is split into logical sections. Let's start with the card layout styles used in the "our-team" section variant.
+        </div>
+        
+        <p><strong>Card Layout &amp; Content Styles:</strong></p>
+<pre>/* blocks/bio-cards/bio-cards.css */
+
+.our-team {
+  padding: 6.75rem 0;
+  background-color: #f1f1f1;
 }
 
-.testimonial .testimonial-container {
+.our-team .bio-cards {
   display: flex;
-  align-items: center;
-  gap: 3rem;
-  max-width: 900px;
-  margin: 0 auto;
+  flex-direction: column;
+  gap: var(--text-5xl);
 }
 
-.testimonial .testimonial-image {
-  flex-shrink: 0;
+.our-team .bio-cards .bio-cards-slide {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: center;
 }
 
-.testimonial .testimonial-image picture {
-  display: block;
+.our-team .bio-cards .bio-card-img {
+  width: 28%;
+  height: 699px;
 }
 
-.testimonial .testimonial-image img {
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 4px solid var(--link-color, #035fe6);
+.our-team .bio-cards .bio-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
-.testimonial .testimonial-quote {
-  flex: 1;
+.our-team .bio-cards .bio-card-content {
+  background-color: #fff;
+  height: auto;
+  padding: 3rem 50px;
+  max-width: 57%;
 }
 
-.testimonial .testimonial-text {
-  font-size: 1.5rem;
-  font-style: italic;
-  line-height: 1.6;
-  color: var(--text-color, #333);
-  margin-bottom: 1rem;
+.our-team .bio-cards .bio-card-content .bio-card-name {
+  font-size: var(--text-3xl);
+  color: #e00025;
+  font-weight: 500;
+  line-height: var(--text-3xl-lh);
+  margin-bottom: 0.5rem;
+  margin-top: 0;
+  font-family: var(--ff-medium), sans-serif;
 }
 
-.testimonial .testimonial-text::before {
-  content: '"';
-  font-size: 3rem;
-  color: var(--link-color, #035fe6);
-  line-height: 0;
-  vertical-align: -0.5rem;
-  margin-right: 0.25rem;
+.our-team .bio-cards .bio-card-content .bio-card-designation {
+  font-family: var(--ff-thin), sans-serif;
+  font-size: var(--text-lg);
+  line-height: var(--text-3xl);
+  font-weight: 300;
+  color: rgb(33 37 41);
+  position: relative;
 }
 
-.testimonial .testimonial-attribution {
-  font-weight: 600;
-  color: var(--link-color, #035fe6);
+.our-team .bio-cards .bio-card-content .bio-card-designation::after {
+  background: #e8e8e9;
+  content: '';
+  height: 5px;
+  left: 0;
+  margin: 10px auto;
+  position: absolute;
+  top: 100%;
+  width: 20%;
 }
 
-/* Responsive design */
-@media (max-width: 768px) {
-  .testimonial .testimonial-container {
+.our-team .bio-cards .bio-card-content .bio-card-description {
+  list-style: none;
+  line-height: var(--text-lg-lh);
+  padding: 24px 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 8;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}</pre>
+        
+        <p><strong>Responsive Styles:</strong></p>
+<pre>/* Responsive */
+@media (max-width: 900px) {
+  .our-team .bio-cards .bio-cards-slide {
     flex-direction: column;
-    text-align: center;
   }
-  
-  .testimonial .testimonial-text {
-    font-size: 1.25rem;
+  .our-team .bio-cards .bio-card-img {
+    width: 100%;
+    height: auto;
+  }
+  .our-team .bio-cards .bio-card-content {
+    max-width: 100%;
   }
 }</pre>
         
-        <h3 class="subsection">4.5 Testing the Block</h3>
+        <h3 class="subsection">4.6 Testing the Block</h3>
         
         <div class="trainer-box do">
-            <span class="label">[DO]</span> Create a test document with a testimonial table and preview it.
+            <span class="label">[DO]</span> Create a test page with Bio Cards content using the Universal Editor and preview it.
         </div>
         
         <p><strong>Testing Steps:</strong></p>
         <ol>
-            <li>Create a Google Doc with a testimonial table</li>
+            <li>Add Bio Cards block to a page via Universal Editor</li>
+            <li>Add 2-3 bio cards with images, names, designations, and descriptions</li>
             <li>Preview using Sidekick or local server</li>
-            <li>Open DevTools to inspect the generated HTML</li>
+            <li>Open DevTools to inspect the generated HTML classes</li>
+            <li>Verify all classes are applied (bio-cards-slide, bio-card-img, bio-card-content, etc.)</li>
             <li>Test responsive behavior by resizing the browser</li>
-            <li>Debug any issues using console.log</li>
         </ol>
         
         <div class="trainer-box check">
@@ -1216,10 +1314,10 @@ export default function decorate(block) {
         <h3 class="subsection">5.6 Hands-on: Add Image Optimization</h3>
         <p class="time">⏱ 15 minutes</p>
         
-        <p><strong>Exercise 5.1: Enhance Your Testimonial Block</strong></p>
+        <p><strong>Exercise 5.1: Enhance Your Bio Cards Block</strong></p>
         <ol>
             <li>Import createOptimizedPicture from aem.js</li>
-            <li>Apply image optimization to the testimonial photo</li>
+            <li>Apply image optimization to the bio card photos</li>
             <li>Add appropriate breakpoints for responsive images</li>
             <li>Test on different screen sizes</li>
         </ol>
@@ -1354,18 +1452,18 @@ Cards (3-columns)             → class="cards 3-columns block"</pre>
         <h3 class="subsection">6.5 Hands-on: Add Variants</h3>
         <p class="time">⏱ 20 minutes</p>
         
-        <p><strong>Exercise 6.1: Extend Your Testimonial Block</strong></p>
-        <p>Add these variants to your testimonial block:</p>
+        <p><strong>Exercise 6.1: Extend Your Bio Cards Block</strong></p>
+        <p>Add these variants to your bio-cards block:</p>
         <ol>
-            <li><strong>'reversed'</strong> - Image on the right instead of left</li>
-            <li><strong>'compact'</strong> - Smaller text and padding</li>
-            <li><strong>'highlighted'</strong> - Add a colored background</li>
+            <li><strong>'our-team-card'</strong> - Alternative card styling with different background</li>
+            <li><strong>'ceo-desk'</strong> - CEO spotlight layout with circular image and background</li>
+            <li>Combine section metadata classes with block variants</li>
         </ol>
         
-        <p>Test by creating document tables with:</p>
-<pre>Testimonial (reversed)
-Testimonial (compact)
-Testimonial (highlighted, reversed)</pre>
+        <p>Test by creating pages with section metadata:</p>
+<pre>Bio Cards (with section class: our-team)
+Bio Cards (with section class: our-team our-team-card)
+Bio Cards (with section class: ceo-desk)</pre>
         
         <!-- Section 9 -->
         <h2 class="section-header" id="section9">9. Exercise Solutions</h2>
@@ -1463,102 +1561,104 @@ export default function decorate(block) {
         
         <h3 class="subsection">Solution 5.1: Image Optimization Enhancement</h3>
         
-<pre>// blocks/testimonial/testimonial.js (updated)
+<pre>// blocks/bio-cards/bio-cards.js (updated with image optimization)
 
 import { createOptimizedPicture } from '../../scripts/aem.js';
 
 export default function decorate(block) {
-  const rows = [...block.children];
-  const contentRow = rows[0];
-  if (!contentRow) return;
-  
-  const cells = [...contentRow.children];
-  const imageCell = cells[0];
-  const textCell = cells[1];
-  
-  block.innerHTML = '';
-  
-  const container = document.createElement('div');
-  container.className = 'testimonial-container';
-  
-  // Image section with optimization
-  const imageWrapper = document.createElement('div');
-  imageWrapper.className = 'testimonial-image';
-  
-  const img = imageCell?.querySelector('img');
-  if (img) {
+  // Optimize all images first
+  block.querySelectorAll('img').forEach((imgEl) => {
     const optimized = createOptimizedPicture(
-      img.src,
-      img.alt || 'Customer photo',
-      false, // lazy load
+      imgEl.src,
+      imgEl.alt || 'Team member photo',
+      false,
       [
-        { media: '(min-width: 768px)', width: '200' },
-        { width: '150' }
+        { media: '(min-width: 900px)', width: '400' },
+        { width: '300' }
       ]
     );
-    imageWrapper.append(optimized);
-  }
-  
-  // Quote section (unchanged)
-  const quoteWrapper = document.createElement('div');
-  quoteWrapper.className = 'testimonial-quote';
-  
-  const paragraphs = textCell?.querySelectorAll('p') || [];
-  paragraphs.forEach((p, index) => {
-    p.className = index === paragraphs.length - 1 
-      ? 'testimonial-attribution' 
-      : 'testimonial-text';
-    quoteWrapper.append(p);
+    imgEl.closest('picture')?.replaceWith(optimized);
   });
-  
-  container.append(imageWrapper, quoteWrapper);
-  block.append(container);
+
+  [...block.children].forEach(card => {
+    card.classList.add('bio-cards-slide');
+    const [imgWrapper, contentWrapper] = [...card.children];
+    if (!imgWrapper || !contentWrapper) return;
+
+    imgWrapper.classList.add('bio-card-img');
+    contentWrapper.classList.add('bio-card-content');
+
+    const [name, designation, description, buttonContainer] = [
+      ...contentWrapper.children,
+    ];
+
+    name?.classList.add('bio-card-name');
+    designation?.classList.add('bio-card-designation');
+    description?.classList.add('bio-card-description');
+    buttonContainer?.classList.add('bio-card-btn-text');
+  });
 }</pre>
         
-        <h3 class="subsection">Solution 6.1: Testimonial Variants</h3>
+        <h3 class="subsection">Solution 6.1: Bio Cards Variants</h3>
         
-<pre>/* blocks/testimonial/testimonial.css (additions) */
+<pre>/* blocks/bio-cards/bio-cards.css (variant additions) */
 
-/* Variant: reversed */
-.testimonial.reversed .testimonial-container {
-  flex-direction: row-reverse;
+/* Variant: our-team-card - alternate card style */
+.our-team.our-team-card {
+  background-color: white;
 }
 
-/* Variant: compact */
-.testimonial.compact {
-  padding: 2rem 1rem;
+.our-team.our-team-card .bio-cards .bio-card-content {
+  background-color: #f1f1f1;
+  max-width: 57%;
+  padding: 32px;
 }
 
-.testimonial.compact .testimonial-image img {
-  width: 100px;
-  height: 100px;
+.our-team.our-team-card .bio-cards .bio-card-img {
+  height: 477px;
 }
 
-.testimonial.compact .testimonial-text {
-  font-size: 1.125rem;
+.our-team.our-team-card .bio-cards .bio-card-content
+  ul.bio-card-description {
+  max-height: 270px;
+  overflow-y: auto;
+  display: block;
 }
 
-.testimonial.compact .testimonial-container {
-  gap: 1.5rem;
+/* Variant: ceo-desk - CEO spotlight layout */
+.section.ceo-desk {
+  padding: 108px 0;
+  position: relative;
+  background-image: url('/icons/ceo-background.png');
+  background-size: cover;
+  background-position: center;
 }
 
-/* Variant: highlighted */
-.testimonial.highlighted {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.section.ceo-desk .bio-card-img img {
+  width: 518px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
-.testimonial.highlighted .testimonial-text,
-.testimonial.highlighted .testimonial-attribution {
-  color: white;
+.section.ceo-desk .bio-card-content .bio-card-name {
+  order: 1;
 }
 
-.testimonial.highlighted .testimonial-image img {
-  border-color: white;
+.section.ceo-desk .bio-card-content .bio-card-designation {
+  order: 4;
+  margin-bottom: 80px;
 }
 
-/* Combined: highlighted + reversed */
-.testimonial.highlighted.reversed {
-  background: linear-gradient(225deg, #667eea 0%, #764ba2 100%);
+.section.ceo-desk .bio-card-content .bio-card-description {
+  order: 2;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.section.ceo-desk .bio-card-content .bio-card-btn-text {
+  order: 3;
 }</pre>
         
         <!-- Section 10 -->
