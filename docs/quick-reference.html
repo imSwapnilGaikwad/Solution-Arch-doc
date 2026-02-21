@@ -348,8 +348,6 @@
 │   ├── styles.css            # Global styles
 │   └── fonts.css             # Font definitions
 ├── head.html                 # &lt;head&gt; contents
-├── header.html               # Site header
-├── footer.html               # Site footer
 └── 404.html                  # Error page</pre>
 
         <div class="tip">
@@ -665,69 +663,103 @@ document.addEventListener('product-selected', (e) =&gt; {
     <div class="section" id="css">
         <h2 class="section-title"><span class="num">4</span> CSS Best Practices</h2>
 
+        <div class="card">
+            <h4>Selector Block Isolation</h4>
+            <p>AEM blocks operate as components collaboratively in the same DOM/CSSOM. Write your CSS selectors so they only apply to your block. Every selector in a block <code>.css</code> should be scoped to the block class.</p>
+<pre>/* ✓ Scoped to block */
+.bio-cards .bio-card-name { color: #e00025; }
+
+/* ✗ Leaks to entire page */
+h3 { color: #e00025; }</pre>
+        </div>
+
+        <div class="card">
+            <h4>Cascade &amp; Naming</h4>
+            <p>Prefix classes and variables that are private to your block with the block name. If CSS classes should be inherited across blocks (often authorable), don't prefix them. Name classes simple and intuitive &mdash; avoid unnecessary namespacing.</p>
+<pre>/* Private to block - prefixed */
+.bio-cards .bio-card-img { width: 30%; }
+
+/* Shared across blocks - not prefixed */
+.button { padding: 1rem 2rem; }</pre>
+        </div>
+
+        <div class="card">
+            <h4>Selector Complexity</h4>
+            <p>Don't let CSS selectors become complex and unreadable. It is better to decorate additional CSS classes onto your DOM and write readable CSS. Complex selectors are harder to maintain and more brittle than the equivalents in JS.</p>
+<pre>/* ✗ Too complex */
+.our-team > div:nth-child(2) > div:first-child > p + ul > li { }
+
+/* ✓ Add a class in JS, write simple CSS */
+.bio-card-description li { }</pre>
+        </div>
+
+        <div class="card">
+            <h4>The <code>!important</code> Rule</h4>
+            <p><code>!important</code> is reserved for very specific isolated cases. Since in website projects we control the entire CSS context of a page, it is very unlikely that there is a need to use it.</p>
+        </div>
+
+        <div class="card">
+            <h4>ARIA Attributes for Styling</h4>
+            <p>Use ARIA attributes like <code>aria-expanded</code> or <code>aria-hidden</code> for styling state instead of inventing custom classes. They have well-defined semantics understood by all developers.</p>
+<pre>/* ✓ Use ARIA for state */
+.accordion[aria-expanded="true"] .content { display: block; }
+
+/* ✗ Custom class with unclear semantics */
+.accordion.is-open .content { display: block; }</pre>
+        </div>
+
+        <div class="card">
+            <h4>Mobile First</h4>
+            <p>CSS without media query should render a mobile site. Add media queries to extend the layout for tablet and desktop.</p>
+        </div>
+
+        <div class="card">
+            <h4>Breakpoints</h4>
+            <p>Use <code>600px</code>, <code>900px</code> and <code>1200px</code> as your breakpoints, all <code>min-width</code>. Don't mix <code>min-width</code> and <code>max-width</code>. Only use different breakpoints in exceptional cases.</p>
+        </div>
+
+        <div class="card">
+            <h4>Indentation &amp; Property Order</h4>
+            <p>Outside of a CSS refactoring PR, don't change sequencing on properties or indentation across CSS files you touch in a functional PR. Make sure the diff in your PR is isolated to the changes you actually want reviewed.</p>
+        </div>
+
+        <div class="card">
+            <h4>Preprocessors (Less, Sass, Tailwind, etc.)</h4>
+            <p>Don't introduce a dependency to any CSS preprocessor or framework without team and organization buy-in. The simplest solution is to rely on the growing CSS feature set supported by browsers.</p>
+        </div>
+
+        <div class="card">
+            <h4>Modern CSS Features</h4>
+            <p>Make sure the features you are using are well supported by evergreen browsers. Depending on the features, more or less pervasive support may be acceptable.</p>
+        </div>
+
         <div class="do-dont">
             <div class="do-box">
                 <h4>&#10003; Do</h4>
                 <ul>
-                    <li>Scope selectors to block: <code>.hero .hero-content</code></li>
+                    <li>Scope every selector to the block class</li>
+                    <li>Prefix block-private classes with block name</li>
                     <li>Use CSS variables from global styles</li>
-                    <li>Write mobile-first, add <code>min-width</code> media queries</li>
+                    <li>Write mobile-first, add <code>min-width</code> queries</li>
                     <li>Use ARIA attributes for styling state</li>
                     <li>Keep selectors simple and readable</li>
-                    <li>Use standard breakpoints: 600, 900, 1200px</li>
+                    <li>Use breakpoints: 600, 900, 1200px</li>
+                    <li>Use native CSS features over preprocessors</li>
                 </ul>
             </div>
             <div class="dont-box">
                 <h4>&#10007; Don't</h4>
                 <ul>
                     <li>Use unscoped selectors: <code>h1 { }</code></li>
-                    <li>Use <code>!important</code> (almost never needed)</li>
+                    <li>Use <code>!important</code></li>
                     <li>Mix <code>min-width</code> and <code>max-width</code></li>
                     <li>Write overly complex nested selectors</li>
                     <li>Change linting config for personal preference</li>
-                    <li>Add preprocessors (Sass/Less) without team buy-in</li>
+                    <li>Add preprocessors without team buy-in</li>
+                    <li>Change property order in non-refactoring PRs</li>
                 </ul>
             </div>
         </div>
-
-        <h3 class="subsection">Block CSS Template</h3>
-        <span class="file-label">blocks/bio-cards/bio-cards.css</span>
-<pre>/* Base layout */
-.our-team .bio-cards {
-  display: flex;
-  flex-direction: column;
-  gap: var(--text-5xl);
-}
-
-.our-team .bio-cards .bio-cards-slide {
-  display: flex;
-  flex-direction: row-reverse;
-  justify-content: center;
-}
-
-.our-team .bio-cards .bio-card-img {
-  width: 28%;
-}
-
-.our-team .bio-cards .bio-card-content {
-  background-color: #fff;
-  padding: 3rem 50px;
-  max-width: 57%;
-}
-
-/* Responsive */
-@media (max-width: 900px) {
-  .our-team .bio-cards .bio-cards-slide {
-    flex-direction: column;
-  }
-  .our-team .bio-cards .bio-card-img {
-    width: 100%;
-    height: auto;
-  }
-  .our-team .bio-cards .bio-card-content {
-    max-width: 100%;
-  }
-}</pre>
 
         <h3 class="subsection">Variant CSS Pattern</h3>
 <pre>/* Base block - works without any variant */
