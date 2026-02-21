@@ -368,7 +368,8 @@
   });
 }</pre>
 
-        <h3 class="subsection">Add Semantic Classes (Bio Cards Pattern)</h3>
+        <h3 class="subsection">Pattern: Add Semantic Classes</h3>
+        <p>EDS generates plain <code>&lt;div&gt;</code> elements with no meaningful class names. In this pattern, instead of tearing down and rebuilding the DOM, you keep the existing structure and add descriptive class names (like <code>bio-card-img</code>, <code>bio-card-name</code>) so CSS can target them. This is lighter, preserves author content, and avoids unnecessary DOM manipulation.</p>
         <span class="file-label">blocks/bio-cards/bio-cards.js</span>
 <pre>export default function decorate(block) {
   [...block.children].forEach(card =&gt; {
