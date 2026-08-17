@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EDS Block Forge — xwalk JSON Generator</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>{}</text></svg>">
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EDS Block Forge — Universal Editor block JSON generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
 <style>
   html, body { margin: 0; padding: 0; }
   #root { min-height: 100vh; }
@@ -15,21 +14,22 @@
 </head>
 <body>
 <div id="root"></div>
-
-<script type="text/plain" id="app-source">
+<script type="text/babel" data-presets="react" data-type="module">
 const { useState, useMemo, useCallback } = React;
 
 /**
- * EDS Block Forge v3 — Universal Editor (Crosswalk / xwalk) block JSON generator.
+ * EDS Block Forge v4 — Universal Editor (Crosswalk / xwalk) block JSON generator.
  *
  * Deterministic. No LLM, no backend. Generates the real xwalk source bundle:
  *   { definitions:[...], models:[...], filters:[...] }
  *
- * Key model: in container mode, the PARENT and the ITEM each get their own
- * independent, fully-featured field list (any field type, tabs, columns).
- * "classes" is an optional convenience field, not a hardcoded singleton —
- * some blocks (Accordion, Cards) style via classes; others (Navigation) put
- * real content fields straight on the parent and have no classes at all.
+ * v4 additions (from real "key-value" style blocks — Fragment List, Flights,
+ * Dynamic Media): template "key-value" flag, per-field description, simple
+ * conditional visibility ({"==":[{"var":x},y]}), validation.rootPath for
+ * asset/content pickers, a dedicated Content Fragment picker type, a
+ * "custom / other component" type for third-party UE components (e.g.
+ * "namespace:component" with arbitrary config keys), and a fix so hyphenated
+ * names like "custom-class" are preserved literally instead of mangled.
  */
 
 const FIELD_TYPES = {
@@ -37,7 +37,8 @@ const FIELD_TYPES = {
   textarea: { label: "Text area", component: "textarea" },
   richtext: { label: "Rich text", component: "richtext", rte: true },
   reference: { label: "Image / asset", component: "reference", pairsAlt: true, multi: true },
-  "aem-content": { label: "Link / AEM content", component: "aem-content", pairsText: true },
+  "aem-content": { label: "Link / AEM content", component: "aem-content", supportsPairText: true, supportsRootPath: true },
+  "aem-content-fragment": { label: "Content Fragment picker", component: "aem-content-fragment", supportsRootPath: true },
   number: { label: "Number", component: "number" },
   boolean: { label: "Boolean (toggle)", component: "boolean" },
   select: { label: "Select (one)", component: "select", hasOptions: true },
@@ -46,6 +47,7 @@ const FIELD_TYPES = {
   "checkbox-group": { label: "Checkbox group", component: "checkbox-group", hasOptions: true },
   "aem-tag": { label: "AEM tag picker", component: "aem-tag" },
   "date-time": { label: "Date / time", component: "date-time" },
+  custom: { label: "Custom / other component…", component: "", isCustom: true },
   tab: { label: "— Tab separator —", component: "tab", isTab: true },
 };
 const TYPE_KEYS = Object.keys(FIELD_TYPES);
@@ -53,8 +55,12 @@ const TYPE_KEYS = Object.keys(FIELD_TYPES);
 const slug = (s) =>
   (s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
+// Preserves hyphens literally (e.g. "custom-class" stays "custom-class") —
+// only underscores and spaces are treated as word-break separators for
+// camelCasing. Hyphens are legal in xwalk field names; underscores are not
+// (outside the colN_ prefix), so they're handled differently on purpose.
 const cleanSeg = (s) => {
-  const c = (s || "").trim().replace(/[_]+/g, " ").replace(/[^a-zA-Z0-9 ]+/g, "")
+  const c = (s || "").trim().replace(/[_]+/g, " ").replace(/[^a-zA-Z0-9\- ]+/g, "")
     .split(/\s+/).filter(Boolean)
     .map((w, i) => (i === 0 ? w.charAt(0).toLowerCase() + w.slice(1) : w.charAt(0).toUpperCase() + w.slice(1)))
     .join("");
@@ -74,6 +80,8 @@ let uid = 0;
 const nid = () => `f${++uid}`;
 const newField = (type = "text") => ({
   _id: nid(), type, label: "", name: "", value: "", required: false, multi: false, optionsRaw: "", col: 1,
+  description: "", rootPath: "", condField: "", condValue: "", pairText: false,
+  customComponent: "", extraKey: "", extraValue: "",
 });
 
 function parseOptions(raw, allowGroups) {
@@ -101,6 +109,32 @@ function coerce(v, meta) {
   return v;
 }
 
+// text/select/etc → "string", number → "number", boolean → "boolean";
+// multiselect/checkbox-group conventionally omit valueType in real blocks.
+function defaultValueType(type) {
+  if (type === "number") return "number";
+  if (type === "boolean") return "boolean";
+  if (type === "multiselect" || type === "checkbox-group") return null;
+  return "string";
+}
+
+function coerceCondValue(raw) {
+  const t = (raw || "").trim();
+  if (t === "true") return true;
+  if (t === "false") return false;
+  if (t !== "" && !isNaN(Number(t))) return Number(t);
+  return t;
+}
+
+function tryParseExtra(raw) {
+  const t = (raw ?? "").toString().trim();
+  if (t === "") return "";
+  if (t === "true") return true;
+  if (t === "false") return false;
+  if (!isNaN(Number(t))) return Number(t);
+  return t;
+}
+
 function buildFields(fields, usePrefix) {
   const out = [];
   for (const f of fields || []) {
@@ -111,16 +145,22 @@ function buildFields(fields, usePrefix) {
     }
     const name = composeName(f.name, f.label, usePrefix, f.col);
     const label = f.label?.trim() || name;
-    const obj = { component: meta.component, name, label };
-    if (["richtext", "reference", "aem-content"].includes(meta.component)) obj.valueType = "string";
-    if (f.value?.toString().trim() !== "") obj.value = coerce(f.value, meta);
+    const component = meta.isCustom ? (f.customComponent?.trim() || "custom-component") : meta.component;
+    const obj = { component, name, label };
+    if (f.description?.trim()) obj.description = f.description.trim();
+    const vt = defaultValueType(f.type);
+    if (vt) obj.valueType = vt;
+    if (f.value?.toString().trim() !== "") obj.value = coerce(f.value, meta.isCustom ? { component: "text" } : meta);
+    if (meta.supportsRootPath && f.rootPath?.trim()) obj.validation = { rootPath: f.rootPath.trim() };
+    if (f.condField?.trim()) obj.condition = { "==": [{ var: f.condField.trim() }, coerceCondValue(f.condValue)] };
     if (meta.multi) obj.multi = !!f.multi;
     if (f.required) obj.required = true;
     if (meta.hasOptions) obj.options = parseOptions(f.optionsRaw, meta.grouped);
+    if (meta.isCustom && f.extraKey?.trim()) obj[f.extraKey.trim()] = tryParseExtra(f.extraValue);
     if (f._extra && Object.keys(f._extra).length) Object.assign(obj, f._extra);
     out.push(obj);
-    if (meta.pairsAlt && !f.multi) out.push({ component: "text", name: `${name}Alt`, label: `${label} — Alt Text` });
-    if (meta.pairsText) out.push({ component: "text", name: `${name}Text`, label: `${label} Text` });
+    if (meta.pairsAlt && !f.multi) out.push({ component: "text", name: `${name}Alt`, label: `${label} — Alt Text`, valueType: "string" });
+    if (meta.supportsPairText && f.pairText) out.push({ component: "text", name: `${name}Text`, label: `${label} Text`, valueType: "string" });
   }
   return out;
 }
@@ -160,6 +200,7 @@ function buildArtifacts(spec) {
   const groupId = slug(group) || "blocks";
   const parentRT = spec.resourceType?.trim() || "core/franklin/components/block/v1/block";
   const title = spec.title?.trim() || "My Block";
+  const kv = spec.keyValue ? { "key-value": true } : {};
 
   const definitions = [], models = [], filters = [];
 
@@ -167,7 +208,7 @@ function buildArtifacts(spec) {
     const iid = `${pid}-item`;
     definitions.push({
       id: pid, title,
-      plugins: { xwalk: { page: { resourceType: parentRT, template: { name: title, model: pid, filter: pid } } } },
+      plugins: { xwalk: { page: { resourceType: parentRT, template: { name: title, model: pid, filter: pid, ...kv } } } },
     });
     definitions.push({
       title: `${title} Item`, id: iid,
@@ -185,7 +226,7 @@ function buildArtifacts(spec) {
   } else {
     definitions.push({
       id: pid, title,
-      plugins: { xwalk: { page: { resourceType: parentRT, template: { name: title, model: pid } } } },
+      plugins: { xwalk: { page: { resourceType: parentRT, template: { name: title, model: pid, ...kv } } } },
     });
     const fields = [
       ...(spec.includeClasses ? [classesField(spec)] : []),
@@ -213,6 +254,14 @@ function validate(spec, art) {
   const errs = [], warns = [];
   if (!spec.title?.trim()) errs.push("Block needs a name.");
 
+  const allNames = new Set();
+  const collectNames = (arr) => (arr || []).forEach((f) => { if (f.name?.trim()) allNames.add(composeName(f.name, f.label, spec.usePrefix, f.col)); });
+  collectNames(spec.fields); collectNames(spec.parentFields);
+
+  const checkConditions = (arr, label) => (arr || []).forEach((f) => {
+    if (f.condField?.trim() && !allNames.has(f.condField.trim())) warns.push(`${label} field "${f.label || f.name}" conditions on unknown field "${f.condField.trim()}".`);
+  });
+
   if (spec.shape === "container") {
     checkModelFields(art.componentModels[0], "block", errs);
     checkModelFields(art.componentModels[1], "item", errs);
@@ -220,10 +269,12 @@ function validate(spec, art) {
     if (!nonTabItem.length) warns.push("Item has no fields yet.");
     const nonTabParent = (spec.parentFields || []).filter((f) => !FIELD_TYPES[f.type].isTab);
     if (!nonTabParent.length && !spec.includeClasses) warns.push("Block (parent) panel has no fields and no style selector — it'll be empty for the author.");
+    checkConditions(spec.fields, "Item"); checkConditions(spec.parentFields, "Block");
   } else {
     checkModelFields(art.componentModels[0], "block", errs);
     const nonTab = spec.fields.filter((f) => !FIELD_TYPES[f.type].isTab);
     if (!nonTab.length && !spec.includeClasses) warns.push("Block has no fields yet.");
+    checkConditions(spec.fields, "Block");
   }
 
   const anyRichtext = spec.fields.some((f) => f.type === "richtext") || (spec.parentFields || []).some((f) => f.type === "richtext");
@@ -238,12 +289,13 @@ const sans = "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 // ---------- import: bundle JSON -> spec (lossless, preserve-and-flag) ----------
 const COMPONENT_TO_TYPE = {
   text: "text", textarea: "textarea", richtext: "richtext", reference: "reference",
-  "aem-content": "aem-content", number: "number", boolean: "boolean", select: "select",
+  "aem-content": "aem-content", "aem-content-fragment": "aem-content-fragment",
+  number: "number", boolean: "boolean", select: "select",
   multiselect: "multiselect", "radio-group": "radio-group", "checkbox-group": "checkbox-group",
   "aem-tag": "aem-tag", "date-time": "date-time", tab: "tab",
 };
-const KNOWN_FIELD_KEYS = new Set(["component", "name", "label", "valueType", "value", "multi", "required", "options"]);
-const KNOWN_TEMPLATE_KEYS = new Set(["name", "model", "filter"]);
+const KNOWN_FIELD_DIRECT = new Set(["component", "name", "label", "valueType", "value", "multi", "required", "options", "description"]);
+const KNOWN_TEMPLATE_KEYS = new Set(["name", "model", "filter", "key-value"]);
 
 function optionsToRaw(options) {
   if (!Array.isArray(options)) return "";
@@ -277,30 +329,67 @@ function rteFromJson(rte, warnings) {
   }
   return base;
 }
+// Matches only the simple pattern seen in practice: {"==": [{"var": "field"}, value]}
+function parseCondition(cond) {
+  if (!cond || typeof cond !== "object") return null;
+  const eq = cond["=="];
+  if (!Array.isArray(eq) || eq.length !== 2) return null;
+  const [left, right] = eq;
+  if (!left || typeof left !== "object" || typeof left.var !== "string") return null;
+  if (!["string", "number", "boolean"].includes(typeof right)) return null;
+  return { field: left.var, value: right };
+}
 function fieldFromJson(fj, warnings, ctx) {
-  const type = COMPONENT_TO_TYPE[fj.component];
   const { col } = splitPrefix(fj.name);
+  let type = COMPONENT_TO_TYPE[fj.component];
+  let customComponent = "";
+  if (!type) { type = "custom"; customComponent = fj.component || ""; }
+
+  let rootPath = "";
+  if (fj.validation && typeof fj.validation === "object") {
+    const keys = Object.keys(fj.validation);
+    if (keys.length === 1 && keys[0] === "rootPath" && typeof fj.validation.rootPath === "string") rootPath = fj.validation.rootPath;
+    else warnings.push(`${ctx}: "${fj.name}" has custom validation rules — preserved on export, not editable.`);
+  }
+
+  let condField = "", condValue = "";
+  if (fj.condition) {
+    const parsed = parseCondition(fj.condition);
+    if (parsed) { condField = parsed.field; condValue = String(parsed.value); }
+    else warnings.push(`${ctx}: "${fj.name}" has a complex condition — preserved on export, not editable.`);
+  }
+
+  const handled = new Set([...KNOWN_FIELD_DIRECT, "validation", "condition", "__pairText"]);
   const extra = {};
-  for (const k of Object.keys(fj)) if (!KNOWN_FIELD_KEYS.has(k)) extra[k] = fj[k];
+  let extraKey = "", extraValue = "";
+  for (const k of Object.keys(fj)) {
+    if (handled.has(k)) continue;
+    if (type === "custom" && !extraKey) { extraKey = k; extraValue = typeof fj[k] === "string" ? fj[k] : String(fj[k]); }
+    else extra[k] = fj[k];
+  }
   if (Object.keys(extra).length) warnings.push(`${ctx}: "${fj.name}" has non-editable keys (${Object.keys(extra).join(", ")}) — preserved on export.`);
-  if (!type) warnings.push(`${ctx}: unknown component "${fj.component}" — preserved but not editable.`);
+
   return {
-    _id: nid(), type: type || "text", label: fj.label || "", name: fj.name || "",
+    _id: nid(), type, label: fj.label || "", name: fj.name || "",
     col: col || 1, value: fj.value !== undefined ? String(fj.value) : "",
     multi: !!fj.multi, required: !!fj.required, optionsRaw: fj.options ? optionsToRaw(fj.options) : "",
+    description: fj.description || "", rootPath, condField, condValue, pairText: !!fj.__pairText,
+    customComponent, extraKey, extraValue,
     _extra: extra,
   };
 }
-// Drop the reference field's auto-generated "...Alt" companion (regenerated on export)
-// and any "classes" field (handled separately), returning form-ready field objects.
+// Drop the reference field's auto-generated "…Alt" companion and the
+// aem-content field's auto-generated "…Text" companion (both regenerated
+// on export), plus any "classes" field (handled separately).
 function extractDataFields(rawFields, warnings, ctxLabel) {
   const dataFields = (rawFields || []).filter((f) => f.name !== "classes");
   const kept = [];
   for (let i = 0; i < dataFields.length; i++) {
-    const f = dataFields[i], prev = dataFields[i - 1];
+    const f = dataFields[i], prev = dataFields[i - 1], next = dataFields[i + 1];
     if (prev && prev.component === "reference" && !prev.multi && f.component === "text" && f.name === `${prev.name}Alt`) continue;
     if (prev && prev.component === "aem-content" && f.component === "text" && f.name === `${prev.name}Text`) continue;
-    kept.push(f);
+    const hasTextPair = f.component === "aem-content" && next && next.component === "text" && next.name === `${f.name}Text`;
+    kept.push(hasTextPair ? { ...f, __pairText: true } : f);
   }
   return kept.map((f, i) => fieldFromJson(f, warnings, `${ctxLabel} ${i + 1}`));
 }
@@ -344,6 +433,7 @@ function importBundle(input) {
     resourceType: rt && rt !== "core/franklin/components/block/v1/block" ? rt : "",
     shape: isContainer ? "container" : "simple",
     usePrefix: anyPrefixed,
+    keyValue: tmpl["key-value"] === true,
     includeClasses: !!classesFld,
     classesLabel: classesFld?.label || "",
     classesRaw: classesFld ? optionsToRaw(classesFld.options) : "",
@@ -413,6 +503,7 @@ function labelRow(f) {
     <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 4 }}>
       <span style={{ fontSize: 12, fontWeight: 600, color: "#333" }}>{f.label || "(unlabeled)"}</span>
       {f.required && <span style={{ color: "#B42318", fontSize: 12 }}>*</span>}
+      {f.condField && <span style={{ fontSize: 10, color: "#999", fontStyle: "italic" }}>shown if {f.condField} = {f.condValue}</span>}
     </div>
   );
 }
@@ -424,16 +515,19 @@ function FieldPreview({ f, usePrefix }) {
   else if (f.type === "textarea") control = <div style={{ ...box, minHeight: 40, color: "#bbb" }}></div>;
   else if (f.type === "reference") control = <div style={{ ...box, display: "flex", alignItems: "center", gap: 8, color: "#999" }}><span style={{ width: 22, height: 22, borderRadius: 4, background: "#eee", display: "grid", placeItems: "center" }}>🖼</span> Select asset…</div>;
   else if (f.type === "aem-content" || f.type === "aem-tag") control = <div style={{ ...box, color: "#999" }}>{f.type === "aem-tag" ? "Pick tags…" : "Select content…"}</div>;
+  else if (f.type === "aem-content-fragment") control = <div style={{ ...box, color: "#999" }}>Select content fragment…</div>;
   else if (f.type === "select" || f.type === "radio-group") control = <SelectPreview raw={f.optionsRaw} radio={f.type === "radio-group"} value={f.value} />;
   else if (f.type === "multiselect" || f.type === "checkbox-group") control = <MultiPreview raw={f.optionsRaw} inline check={f.type === "checkbox-group"} />;
   else if (f.type === "date-time") control = <div style={{ ...box, color: "#999" }}>YYYY-MM-DD…</div>;
   else if (f.type === "number") control = <div style={{ ...box, color: "#bbb" }}>{f.value || "0"}</div>;
+  else if (f.type === "custom") control = <div style={{ ...box, color: "#999", fontFamily: mono, fontSize: 11 }}>{f.customComponent || "custom-component"}</div>;
   else control = <div style={{ ...box, color: "#bbb" }}>{f.value || ""}</div>;
 
   return (
-    <div>
+    <div style={{ opacity: f.condField ? 0.7 : 1 }}>
       {labelRow(f)}
       {control}
+      {f.description && <div style={{ fontSize: 10.5, color: "#aaa", marginTop: 3 }}>{f.description}</div>}
       {usePrefix && f.name && <div style={{ fontSize: 10, color: "#bbb", marginTop: 3, fontFamily: mono }}>→ {f.name}</div>}
     </div>
   );
@@ -493,10 +587,11 @@ const dGhost = { background: "transparent", color: "#c9c4ba", border: "1px solid
 function FieldEditor({ heading, fields, usePrefix, onAdd, onRemove, onMove, onChange }) {
   return (
     <section style={{ marginBottom: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
         <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, letterSpacing: ".03em", textTransform: "uppercase", color: C.sub }}>{heading} · {fields.filter((f) => !FIELD_TYPES[f.type].isTab).length}</h2>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <button onClick={() => onAdd("tab")} style={{ background: "#fff", color: C.sub, border: `1px solid ${C.line}`, borderRadius: 7, padding: "7px 11px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>+ Tab</button>
+          <button onClick={() => onAdd("text", { label: "Custom class", name: "custom-class", description: "Space-separated class names to add to the block" })} style={{ background: "#fff", color: C.sub, border: `1px solid ${C.line}`, borderRadius: 7, padding: "7px 11px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>+ Custom class</button>
           <button onClick={() => onAdd("text")} style={{ background: C.accent, color: "#fff", border: "none", borderRadius: 7, padding: "7px 13px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>+ Field</button>
         </div>
       </div>
@@ -527,9 +622,41 @@ function FieldEditor({ heading, fields, usePrefix, onAdd, onRemove, onMove, onCh
                   <div><label style={mini}>Type</label><select style={{ ...inp, padding: "7px 9px" }} value={f.type} onChange={(e) => onChange(f._id, { type: e.target.value })}>{TYPE_KEYS.filter((k) => !FIELD_TYPES[k].isTab).map((k) => <option key={k} value={k}>{FIELD_TYPES[k].label}</option>)}</select></div>
                   <div><label style={mini}>name (optional)</label><input style={{ ...inp, padding: "7px 9px", fontFamily: mono, fontSize: 12 }} value={f.name} onChange={(e) => onChange(f._id, { name: e.target.value })} placeholder={composeName(f.name, f.label, usePrefix, f.col)} /></div>
                   <div><label style={mini}>Default value</label><input style={{ ...inp, padding: "7px 9px", fontFamily: mono, fontSize: 12 }} value={f.value} onChange={(e) => onChange(f._id, { value: e.target.value })} placeholder="—" /></div>
+
+                  {meta.isCustom && (
+                    <>
+                      <div><label style={mini}>Component (raw)</label><input style={{ ...inp, padding: "7px 9px", fontFamily: mono, fontSize: 12 }} value={f.customComponent} onChange={(e) => onChange(f._id, { customComponent: e.target.value })} placeholder="namespace:component-id" /></div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <input style={{ ...inp, padding: "7px 9px", fontFamily: mono, fontSize: 12 }} value={f.extraKey} onChange={(e) => onChange(f._id, { extraKey: e.target.value })} placeholder="extra key (e.g. configUrl)" />
+                        <input style={{ ...inp, padding: "7px 9px", fontFamily: mono, fontSize: 12 }} value={f.extraValue} onChange={(e) => onChange(f._id, { extraValue: e.target.value })} placeholder="extra value" />
+                      </div>
+                    </>
+                  )}
+
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label style={mini}>Description <span style={{ textTransform: "none" }}>(optional — authoring help text)</span></label>
+                    <input style={{ ...inp, padding: "7px 9px" }} value={f.description} onChange={(e) => onChange(f._id, { description: e.target.value })} placeholder="Shown to the author under the field" />
+                  </div>
+
+                  {meta.supportsRootPath && (
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={mini}>Root path <span style={{ textTransform: "none" }}>(optional — restricts the picker)</span></label>
+                      <input style={{ ...inp, padding: "7px 9px", fontFamily: mono, fontSize: 12 }} value={f.rootPath} onChange={(e) => onChange(f._id, { rootPath: e.target.value })} placeholder="/content/dam" />
+                    </div>
+                  )}
+
+                  {f.type === "boolean" && (
+                    <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 6, alignItems: "center" }}>
+                      <input style={{ ...inp, padding: "7px 9px", fontFamily: mono, fontSize: 12 }} value={f.condField} onChange={(e) => onChange(f._id, { condField: e.target.value })} placeholder="Show only if field name…" />
+                      <span style={{ fontSize: 12, color: C.sub }}>=</span>
+                      <input style={{ ...inp, padding: "7px 9px", fontFamily: mono, fontSize: 12 }} value={f.condValue} onChange={(e) => onChange(f._id, { condValue: e.target.value })} placeholder="value (blank = always shown)" />
+                    </div>
+                  )}
+
                   <div style={{ display: "flex", alignItems: "center", gap: 14, gridColumn: "1 / -1", paddingTop: 2, flexWrap: "wrap" }}>
                     <Toggle on={f.required} onClick={() => onChange(f._id, { required: !f.required })} label="Required" />
                     {meta.multi && <Toggle on={f.multi} onClick={() => onChange(f._id, { multi: !f.multi })} label="Multi" />}
+                    {meta.supportsPairText && <Toggle on={f.pairText} onClick={() => onChange(f._id, { pairText: !f.pairText })} label="Pair with Text field (for links)" />}
                     {usePrefix && (
                       <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: C.ink }}>
                         <span style={{ color: C.sub }}>Column</span>
@@ -542,18 +669,18 @@ function FieldEditor({ heading, fields, usePrefix, onAdd, onRemove, onMove, onCh
                   {meta.hasOptions && (
                     <div style={{ gridColumn: "1 / -1" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                        <label style={{ ...mini, marginBottom: 0 }}>Options{meta.grouped ? " (supports Group: + children)" : ""}</label>
+                        <label style={{ ...mini, marginBottom: 0 }}>Options — <span style={{ textTransform: "none", fontWeight: 400 }}>{meta.grouped ? "Label = value (supports Group: + children)" : "Label = value, one per line"}</span></label>
                         {f.type === "select" && (
                           <button onClick={() => onChange(f._id, { optionsRaw: "H1\nH2\nH3\nH4\nH5\nH6" })} style={{ background: "none", border: `1px solid ${C.line}`, borderRadius: 5, padding: "2px 8px", fontSize: 10.5, fontWeight: 600, color: C.accent, cursor: "pointer" }}>Fill H1–H6</button>
                         )}
                       </div>
-                      <textarea className="sc" style={{ ...inp, padding: "7px 9px", minHeight: 54, resize: "vertical", fontFamily: mono, fontSize: 12, whiteSpace: "pre" }} value={f.optionsRaw} onChange={(e) => onChange(f._id, { optionsRaw: e.target.value })} placeholder={"Small\nMedium\nLarge"} />
+                      <textarea className="sc" style={{ ...inp, padding: "7px 9px", minHeight: 54, resize: "vertical", fontFamily: mono, fontSize: 12, whiteSpace: "pre" }} value={f.optionsRaw} onChange={(e) => onChange(f._id, { optionsRaw: e.target.value })} placeholder={["select", "radio-group", "checkbox-group"].includes(f.type) ? "Grid = grid\nList = list\nCompact = compact" : "Small\nMedium\nLarge"} />
                     </div>
                   )}
                   {meta.pairsAlt && !f.multi && (
                     <div style={{ gridColumn: "1 / -1", fontSize: 11, color: C.accent, background: C.accentSoft, padding: "5px 8px", borderRadius: 6 }}>+ paired <code style={{ fontFamily: mono }}>{composeName(f.name, f.label, usePrefix, f.col)}Alt</code> text field</div>
                   )}
-                  {meta.pairsText && (
+                  {meta.supportsPairText && f.pairText && (
                     <div style={{ gridColumn: "1 / -1", fontSize: 11, color: C.accent, background: C.accentSoft, padding: "5px 8px", borderRadius: 6 }}>+ paired <code style={{ fontFamily: mono }}>{composeName(f.name, f.label, usePrefix, f.col)}Text</code> text field (link text)</div>
                   )}
                 </div>
@@ -570,7 +697,7 @@ function FieldEditor({ heading, fields, usePrefix, onAdd, onRemove, onMove, onCh
 
 function fieldListOps(setSpec, key) {
   return {
-    add: (type = "text") => setSpec((s) => ({ ...s, [key]: [...s[key], newField(type)] })),
+    add: (type = "text", overrides = {}) => setSpec((s) => ({ ...s, [key]: [...s[key], { ...newField(type), ...overrides }] })),
     remove: (id) => setSpec((s) => ({ ...s, [key]: s[key].filter((f) => f._id !== id) })),
     move: (id, d) => setSpec((s) => {
       const arr = s[key];
@@ -584,7 +711,7 @@ function fieldListOps(setSpec, key) {
 
 function EDSBlockForge() {
   const [spec, setSpec] = useState({
-    title: "Accordion", group: "Blocks", resourceType: "", shape: "container",
+    title: "Accordion", group: "Blocks", resourceType: "", shape: "container", keyValue: false,
     usePrefix: true, includeClasses: true, classesLabel: "Accordion Type",
     classesRaw: "Accordion Behavior:\n  First Open = first-open\n  Single = single\n  Multiple = multiple\nSEO & Schema:\n  Enable FAQ Schema = seo-schema-enable",
     itemRte: { enabled: true, paragraph: true, headings: ["h3"], table: true, link: true, unlink: true },
@@ -706,6 +833,7 @@ function EDSBlockForge() {
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 20 }}>
             <Toggle on={spec.usePrefix} onClick={() => set({ usePrefix: !spec.usePrefix })} label="colN_ column prefixes (set per field)" />
             <Toggle on={spec.includeClasses} onClick={() => set({ includeClasses: !spec.includeClasses })} label={`classes style field${isContainer ? " (on parent)" : ""}`} />
+            <Toggle on={spec.keyValue} onClick={() => set({ keyValue: !spec.keyValue })} label="Key-value block (simple property panel)" />
           </div>
 
           {spec.includeClasses && (
@@ -744,7 +872,7 @@ function EDSBlockForge() {
         <div className="prev" style={{ position: "sticky", top: 0, height: "100vh", display: "flex", flexDirection: "column", background: C.code }}>
           <div style={{ display: "flex", gap: 6, padding: "10px 12px 0" }}>
             <div style={{ display: "inline-flex", background: "#2c2925", borderRadius: 8, padding: 3 }}>
-              {[["code", "Code"], ["preview", "Author panel"]].map(([v, l]) => (
+              {[["code", "Code"], ["preview", "Author panel (reference)"]].map(([v, l]) => (
                 <button key={v} onClick={() => setViewMode(v)} style={{ border: "none", cursor: "pointer", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 600, background: viewMode === v ? C.accent : "transparent", color: viewMode === v ? "#fff" : "#8b857c" }}>{l}</button>
               ))}
             </div>
@@ -757,6 +885,10 @@ function EDSBlockForge() {
           )}
           {viewMode === "preview" ? (
             <div className="sc" style={{ flex: 1, overflow: "auto", background: "#F5F3EC", padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ maxWidth: 420, width: "100%", margin: "0 auto", display: "flex", alignItems: "flex-start", gap: 8, background: "#FDF6E3", border: "1px solid #EFD9A0", borderRadius: 8, padding: "9px 12px" }}>
+                <span style={{ fontSize: 14, lineHeight: 1 }}>ⓘ</span>
+                <span style={{ fontSize: 11.5, color: "#7A5C10", lineHeight: 1.4 }}>Reference mockup only — a rough approximation of layout and grouping so you can sanity-check the shape of the panel. Tabs are clickable to switch groups; nothing else responds, no data is stored, and it isn't the real Universal Editor UI.</span>
+              </div>
               {isContainer && (
                 <div style={{ maxWidth: 420, width: "100%", margin: "0 auto" }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#8a8578", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Block panel</div>
@@ -808,13 +940,6 @@ function hl(json) {
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<EDSBlockForge />);
-</script>
-<script>
-  var src = document.getElementById("app-source").textContent;
-  var out = Babel.transform(src, { presets: [["react", { runtime: "classic" }]] });
-  var s = document.createElement("script");
-  s.textContent = out.code;
-  document.body.appendChild(s);
 </script>
 </body>
 </html>
