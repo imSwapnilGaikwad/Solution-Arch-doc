@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDS Block Forge — xwalk JSON Generator</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>{}</text></svg>">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/plain" id="app-source">
+const { useState, useMemo, useCallback } = React;
+
+/**
+ * EDS Block Forge v3 — Universal Editor (Crosswalk / xwalk) block JSON generator.
+ *
+ * Deterministic. No LLM, no backend. Generates the real xwalk source bundle:
+ *   { definitions:[...], models:[...], filters:[...] }
+ *
+ * Key model: in container mode, the PARENT and the ITEM each get their own
+ * independent, fully-featured field list (any field type, tabs, columns).
+ * "classes" is an optional convenience field, not a hardcoded singleton —
+ * some blocks (Accordion, Cards) style via classes; others (Navigation) put
+ * real content fields straight on the parent and have no classes at all.
+ */
+
+const FIELD_TYPES = {
+  text: { label: "Text (single line)", component: "text" },
+  textarea: { label: "Text area", component: "textarea" },
+  richtext: { label: "Rich text", component: "richtext", rte: true },
+  reference: { label: "Image / asset", component: "reference", pairsAlt: true, multi: true },
+  "aem-content": { label: "Link / AEM content", component: "aem-content", pairsText: true },
+  number: { label: "Number", component: "number" },
+  boolean: { label: "Boolean (toggle)", component: "boolean" },
+  select: { label: "Select (one)", component: "select", hasOptions: true },
+  multiselect: { label: "Multiselect", component: "multiselect", hasOptions: true, grouped: true },
+  "radio-group": { label: "Radio group", component: "radio-group", hasOptions: true },
+  "checkbox-group": { label: "Checkbox group", component: "checkbox-group", hasOptions: true },
+  "aem-tag": { label: "AEM tag picker", component: "aem-tag" },
+  "date-time": { label: "Date / time", component: "date-time" },
+  tab: { label: "— Tab separator —", component: "tab", isTab: true },
+};
+const TYPE_KEYS = Object.keys(FIELD_TYPES);
+
+const slug = (s) =>
+  (s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+const cleanSeg = (s) => {
+  const c = (s || "").trim().replace(/[_]+/g, " ").replace(/[^a-zA-Z0-9 ]+/g, "")
+    .split(/\s+/).filter(Boolean)
+    .map((w, i) => (i === 0 ? w.charAt(0).toLowerCase() + w.slice(1) : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join("");
+  return c || "field";
+};
+
+// Column-aware. If the raw name already carries a colN_ prefix, respect it;
+// otherwise prefix with the field's assigned column when prefixing is on.
+const composeName = (raw, label, usePrefix, col) => {
+  const m = (raw || "").match(/^(col\d+_)(.*)$/i);
+  if (m) return m[1].toLowerCase() + cleanSeg(m[2] || label);
+  const base = cleanSeg(raw?.trim() ? raw : label);
+  return usePrefix ? `col${col || 1}_${base}` : base;
+};
+
+let uid = 0;
+const nid = () => `f${++uid}`;
+const newField = (type = "text") => ({
+  _id: nid(), type, label: "", name: "", value: "", required: false, multi: false, optionsRaw: "", col: 1,
+});
+
+function parseOptions(raw, allowGroups) {
+  const lines = (raw || "").split(/\n/).map((l) => l.replace(/\s+$/, "")).filter((l) => l.trim());
+  const out = [];
+  let group = null;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const isChild = allowGroups && /^\s{2,}|\t|^- /.test(line);
+    const groupHeader = allowGroups && /:\s*$/.test(trimmed) && !isChild;
+    if (groupHeader) { group = { name: trimmed.replace(/:\s*$/, ""), children: [] }; out.push(group); continue; }
+    const [namePart, valPart] = trimmed.replace(/^-\s*/, "").split("=").map((s) => s && s.trim());
+    const name = namePart || "Option";
+    const value = valPart != null ? valPart : slug(name);
+    const opt = { name, value };
+    if (group && isChild) group.children.push(opt);
+    else { out.push(opt); group = null; }
+  }
+  return out.length ? out : [{ name: "Option 1", value: "option-1" }];
+}
+
+function coerce(v, meta) {
+  if (meta.component === "number") return isNaN(Number(v)) ? v : Number(v);
+  if (meta.component === "boolean") return v === "true" || v === true;
+  return v;
+}
+
+function buildFields(fields, usePrefix) {
+  const out = [];
+  for (const f of fields || []) {
+    const meta = FIELD_TYPES[f.type];
+    if (meta.isTab) {
+      out.push({ component: "tab", name: cleanSeg(f.name?.trim() || `tab${f.label || ""}`), label: f.label?.trim() || "Tab" });
+      continue;
+    }
+    const name = composeName(f.name, f.label, usePrefix, f.col);
+    const label = f.label?.trim() || name;
+    const obj = { component: meta.component, name, label };
+    if (["richtext", "reference", "aem-content"].includes(meta.component)) obj.valueType = "string";
+    if (f.value?.toString().trim() !== "") obj.value = coerce(f.value, meta);
+    if (meta.multi) obj.multi = !!f.multi;
+    if (f.required) obj.required = true;
+    if (meta.hasOptions) obj.options = parseOptions(f.optionsRaw, meta.grouped);
+    if (f._extra && Object.keys(f._extra).length) Object.assign(obj, f._extra);
+    out.push(obj);
+    if (meta.pairsAlt && !f.multi) out.push({ component: "text", name: `${name}Alt`, label: `${label} — Alt Text` });
+    if (meta.pairsText) out.push({ component: "text", name: `${name}Text`, label: `${label} Text` });
+  }
+  return out;
+}
+
+function buildRte(rte) {
+  const blocks = [];
+  if (rte.paragraph) blocks.push("paragraph");
+  rte.headings.forEach((h) => blocks.push(h));
+  const insert = [];
+  if (rte.table) insert.push("table");
+  if (rte.link) insert.push("link");
+  if (rte.unlink) insert.push("unlink");
+  const toolbar = {};
+  if (blocks.length) toolbar.blocks = blocks;
+  if (insert.length) toolbar.insert = insert;
+  const actions = {};
+  if (rte.table) actions.table = { label: "Insert Table", wrapInParagraphs: true };
+  if (rte.link) actions.link = { label: "Insert Link", shortcut: "Mod-K", hideTarget: false };
+  if (rte.unlink) actions.unlink = { label: "Remove Link", shortcut: "Mod-Shift-K" };
+  const res = {};
+  if (Object.keys(toolbar).length) res.toolbar = toolbar;
+  if (Object.keys(actions).length) res.actions = actions;
+  return Object.keys(res).length ? res : null;
+}
+
+function classesField(spec) {
+  return {
+    component: "multiselect", name: "classes",
+    label: spec.classesLabel?.trim() || `${spec.title || "Block"} Style`,
+    options: parseOptions(spec.classesRaw, true),
+  };
+}
+
+function buildArtifacts(spec) {
+  const pid = slug(spec.title) || "my-block";
+  const group = spec.group?.trim() || "Blocks";
+  const groupId = slug(group) || "blocks";
+  const parentRT = spec.resourceType?.trim() || "core/franklin/components/block/v1/block";
+  const title = spec.title?.trim() || "My Block";
+
+  const definitions = [], models = [], filters = [];
+
+  if (spec.shape === "container") {
+    const iid = `${pid}-item`;
+    definitions.push({
+      id: pid, title,
+      plugins: { xwalk: { page: { resourceType: parentRT, template: { name: title, model: pid, filter: pid } } } },
+    });
+    definitions.push({
+      title: `${title} Item`, id: iid,
+      plugins: { xwalk: { page: { resourceType: `${parentRT}/item`,
+        template: { name: `${title} Item`, model: iid, ...(spec.itemRte.enabled ? { filter: iid } : {}) } } } },
+    });
+    const parentFieldObjs = [
+      ...(spec.includeClasses ? [classesField(spec)] : []),
+      ...buildFields(spec.parentFields, spec.usePrefix),
+    ];
+    models.push({ id: pid, fields: parentFieldObjs });
+    models.push({ id: iid, fields: buildFields(spec.fields, spec.usePrefix) });
+    filters.push({ id: pid, components: [iid] });
+    if (spec.itemRte.enabled) { const rte = buildRte(spec.itemRte); if (rte) filters.push({ id: iid, rte }); }
+  } else {
+    definitions.push({
+      id: pid, title,
+      plugins: { xwalk: { page: { resourceType: parentRT, template: { name: title, model: pid } } } },
+    });
+    const fields = [
+      ...(spec.includeClasses ? [classesField(spec)] : []),
+      ...buildFields(spec.fields, spec.usePrefix),
+    ];
+    models.push({ id: pid, fields });
+    if (spec.itemRte.enabled) { const rte = buildRte(spec.itemRte); if (rte) filters.push({ id: pid, rte }); }
+  }
+
+  return {
+    id: pid, bundle: { definitions, models, filters },
+    componentDefinition: { groups: [{ title: group, id: groupId, components: definitions }] },
+    componentModels: models, componentFilters: filters,
+  };
+}
+
+function checkModelFields(model, label, errs) {
+  if (!model) return;
+  const names = model.fields.filter((f) => f.component !== "tab").map((f) => f.name);
+  [...new Set(names.filter((n, i) => names.indexOf(n) !== i))].forEach((n) => errs.push(`Duplicate field name "${n}" in ${label}.`));
+  names.forEach((n) => { if (/_/.test(n.replace(/^col\d+_/, ""))) errs.push(`${label} field "${n}" has an underscore after the prefix — illegal in xwalk.`); });
+}
+
+function validate(spec, art) {
+  const errs = [], warns = [];
+  if (!spec.title?.trim()) errs.push("Block needs a name.");
+
+  if (spec.shape === "container") {
+    checkModelFields(art.componentModels[0], "block", errs);
+    checkModelFields(art.componentModels[1], "item", errs);
+    const nonTabItem = spec.fields.filter((f) => !FIELD_TYPES[f.type].isTab);
+    if (!nonTabItem.length) warns.push("Item has no fields yet.");
+    const nonTabParent = (spec.parentFields || []).filter((f) => !FIELD_TYPES[f.type].isTab);
+    if (!nonTabParent.length && !spec.includeClasses) warns.push("Block (parent) panel has no fields and no style selector — it'll be empty for the author.");
+  } else {
+    checkModelFields(art.componentModels[0], "block", errs);
+    const nonTab = spec.fields.filter((f) => !FIELD_TYPES[f.type].isTab);
+    if (!nonTab.length && !spec.includeClasses) warns.push("Block has no fields yet.");
+  }
+
+  const anyRichtext = spec.fields.some((f) => f.type === "richtext") || (spec.parentFields || []).some((f) => f.type === "richtext");
+  if (spec.itemRte.enabled && !anyRichtext) warns.push("RTE toolbar is configured but no rich text field uses it.");
+  return { errs, warns };
+}
+
+const C = { ink: "#12100E", paper: "#FBF9F4", line: "#E4DED2", sub: "#6E6656", accent: "#0B5D4E", accentSoft: "#E7F0ED", amber: "#B45309", red: "#B42318", code: "#1C1A17" };
+const mono = "'JetBrains Mono','SF Mono',ui-monospace,Menlo,monospace";
+const sans = "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+
+// ---------- import: bundle JSON -> spec (lossless, preserve-and-flag) ----------
+const COMPONENT_TO_TYPE = {
+  text: "text", textarea: "textarea", richtext: "richtext", reference: "reference",
+  "aem-content": "aem-content", number: "number", boolean: "boolean", select: "select",
+  multiselect: "multiselect", "radio-group": "radio-group", "checkbox-group": "checkbox-group",
+  "aem-tag": "aem-tag", "date-time": "date-time", tab: "tab",
+};
+const KNOWN_FIELD_KEYS = new Set(["component", "name", "label", "valueType", "value", "multi", "required", "options"]);
+const KNOWN_TEMPLATE_KEYS = new Set(["name", "model", "filter"]);
+
+function optionsToRaw(options) {
+  if (!Array.isArray(options)) return "";
+  const lines = [];
+  for (const o of options) {
+    if (o.children) {
+      lines.push(`${o.name}:`);
+      for (const c of o.children) lines.push(`  ${c.name} = ${c.value}`);
+    } else lines.push(o.value === undefined ? o.name : `${o.name} = ${o.value}`);
+  }
+  return lines.join("\n");
+}
+function splitPrefix(name) {
+  const m = (name || "").match(/^col(\d+)_(.*)$/);
+  return m ? { col: Number(m[1]) } : { col: null };
+}
+function rteFromJson(rte, warnings) {
+  const base = { enabled: false, paragraph: false, headings: [], table: false, link: false, unlink: false };
+  if (!rte) return base;
+  base.enabled = true;
+  const blocks = rte.toolbar?.blocks || [];
+  base.paragraph = blocks.includes("paragraph");
+  base.headings = blocks.filter((b) => /^h\d$/.test(b));
+  const insert = rte.toolbar?.insert || [];
+  base.table = insert.includes("table");
+  base.link = insert.includes("link");
+  base.unlink = insert.includes("unlink");
+  if (rte.actions) for (const [k, v] of Object.entries(rte.actions)) {
+    const dflt = (k === "table" && v.wrapInParagraphs) || (k === "link" && v.shortcut === "Mod-K") || k === "unlink";
+    if (!dflt) warnings.push(`RTE action "${k}" has custom config — will regenerate with defaults; verify after export.`);
+  }
+  return base;
+}
+function fieldFromJson(fj, warnings, ctx) {
+  const type = COMPONENT_TO_TYPE[fj.component];
+  const { col } = splitPrefix(fj.name);
+  const extra = {};
+  for (const k of Object.keys(fj)) if (!KNOWN_FIELD_KEYS.has(k)) extra[k] = fj[k];
+  if (Object.keys(extra).length) warnings.push(`${ctx}: "${fj.name}" has non-editable keys (${Object.keys(extra).join(", ")}) — preserved on export.`);
+  if (!type) warnings.push(`${ctx}: unknown component "${fj.component}" — preserved but not editable.`);
+  return {
+    _id: nid(), type: type || "text", label: fj.label || "", name: fj.name || "",
+    col: col || 1, value: fj.value !== undefined ? String(fj.value) : "",
+    multi: !!fj.multi, required: !!fj.required, optionsRaw: fj.options ? optionsToRaw(fj.options) : "",
+    _extra: extra,
+  };
+}
+// Drop the reference field's auto-generated "...Alt" companion (regenerated on export)
+// and any "classes" field (handled separately), returning form-ready field objects.
+function extractDataFields(rawFields, warnings, ctxLabel) {
+  const dataFields = (rawFields || []).filter((f) => f.name !== "classes");
+  const kept = [];
+  for (let i = 0; i < dataFields.length; i++) {
+    const f = dataFields[i], prev = dataFields[i - 1];
+    if (prev && prev.component === "reference" && !prev.multi && f.component === "text" && f.name === `${prev.name}Alt`) continue;
+    if (prev && prev.component === "aem-content" && f.component === "text" && f.name === `${prev.name}Text`) continue;
+    kept.push(f);
+  }
+  return kept.map((f, i) => fieldFromJson(f, warnings, `${ctxLabel} ${i + 1}`));
+}
+function importBundle(input) {
+  let bundle;
+  try { bundle = typeof input === "string" ? JSON.parse(input) : input; }
+  catch (e) { return { error: "Invalid JSON — " + e.message }; }
+  const defs = bundle.definitions || [], modelsArr = bundle.models || [], filtersArr = bundle.filters || [];
+  if (!defs.length) return { error: "No definitions[] found — paste a full _block.json bundle." };
+
+  const warnings = [];
+  const itemDef = defs.find((d) => d.plugins?.xwalk?.page?.resourceType?.endsWith("/item"));
+  const parentDef = defs.find((d) => d !== itemDef) || defs[0];
+  const isContainer = !!itemDef && defs.length >= 2;
+  const parentModel = modelsArr.find((m) => m.id === parentDef.id);
+  const itemModel = itemDef ? modelsArr.find((m) => m.id === itemDef.id) : null;
+  const classesFld = (parentModel?.fields || []).find((f) => f.name === "classes");
+
+  const parentFields = extractDataFields(parentModel?.fields, warnings, isContainer ? "Block field" : "Field");
+  const itemFields = isContainer ? extractDataFields(itemModel?.fields, warnings, "Item field") : [];
+
+  const rt = parentDef.plugins?.xwalk?.page?.resourceType || "";
+  const anyPrefixed = [...parentFields, ...itemFields].some((f) => /^col\d+_/.test(f.name));
+  const targetFilterId = isContainer ? itemDef.id : parentDef.id;
+  const rteFilter = filtersArr.find((f) => f.id === targetFilterId && f.rte);
+  const itemRte = rteFromJson(rteFilter?.rte, warnings);
+
+  if (isContainer) {
+    const parentFilter = filtersArr.find((f) => f.id === parentDef.id && f.components);
+    if (parentFilter && parentFilter.components.length > 1) {
+      warnings.push(`Parent allows multiple item types (${parentFilter.components.join(", ")}) — this tool supports exactly one; only "${itemDef.id}" was imported.`);
+    }
+  }
+
+  const tmpl = parentDef.plugins?.xwalk?.page?.template || {};
+  for (const k of Object.keys(tmpl)) if (!KNOWN_TEMPLATE_KEYS.has(k)) warnings.push(`Template has extra key "${k}" — not editable here.`);
+
+  const spec = {
+    title: parentDef.title || parentDef.id || "My Block",
+    group: "Blocks",
+    resourceType: rt && rt !== "core/franklin/components/block/v1/block" ? rt : "",
+    shape: isContainer ? "container" : "simple",
+    usePrefix: anyPrefixed,
+    includeClasses: !!classesFld,
+    classesLabel: classesFld?.label || "",
+    classesRaw: classesFld ? optionsToRaw(classesFld.options) : "",
+    itemRte,
+    parentFields: isContainer ? parentFields : [],
+    fields: isContainer ? itemFields : parentFields,
+  };
+  return { spec, warnings };
+}
+
+// ---------- author-panel preview ----------
+function panelGroups(fields) {
+  const groups = [];
+  let cur = { tab: null, items: [] };
+  let hasTabs = false;
+  for (const f of fields) {
+    if (FIELD_TYPES[f.type]?.isTab) { hasTabs = true; if (cur.items.length || cur.tab) groups.push(cur); cur = { tab: f.label || "Tab", items: [] }; }
+    else cur.items.push(f);
+  }
+  groups.push(cur);
+  return { hasTabs, groups: hasTabs ? groups.filter((g) => g.tab || g.items.length) : [{ tab: null, items: fields.filter((f) => !FIELD_TYPES[f.type]?.isTab) }] };
+}
+
+function MiniPanel({ title, fields, classesLabel, classesRaw, showClasses, usePrefix, emptyNote }) {
+  const { hasTabs, groups } = panelGroups(fields || []);
+  const [active, setActive] = useState(0);
+  const act = groups[Math.min(active, groups.length - 1)] || groups[0];
+  const totallyEmpty = !showClasses && (!fields || !fields.length);
+
+  return (
+    <div style={{ fontFamily: sans, fontSize: 13, color: "#1f1d1a", background: "#fff", borderRadius: 10, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,.15)" }}>
+      <div style={{ padding: "10px 14px", borderBottom: "1px solid #eee", fontWeight: 700, fontSize: 13, background: "#fafafa", display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ width: 8, height: 8, borderRadius: 2, background: C.accent }} /> {title} — Properties
+      </div>
+      {showClasses && (
+        <div style={{ padding: "10px 14px", borderBottom: "1px solid #f0f0f0" }}>
+          <MultiPreview label={classesLabel || "Style"} raw={classesRaw} />
+        </div>
+      )}
+      {totallyEmpty ? (
+        <div style={{ padding: "16px 14px", color: "#aaa", fontSize: 12 }}>{emptyNote || "No fields yet."}</div>
+      ) : (
+        <>
+          {hasTabs && (
+            <div style={{ display: "flex", gap: 2, padding: "8px 10px 0", borderBottom: "1px solid #eee", flexWrap: "wrap" }}>
+              {groups.map((g, i) => (
+                <button key={i} onClick={() => setActive(i)} style={{
+                  border: "none", cursor: "pointer", padding: "6px 12px", fontSize: 12.5, fontWeight: 600,
+                  background: "none", color: i === active ? C.accent : "#888",
+                  borderBottom: i === active ? `2px solid ${C.accent}` : "2px solid transparent", marginBottom: -1,
+                }}>{g.tab || "General"}</button>
+              ))}
+            </div>
+          )}
+          <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
+            {act.items.length === 0 && <div style={{ color: "#aaa", fontSize: 12 }}>No fields on this tab.</div>}
+            {act.items.map((f) => <FieldPreview key={f._id} f={f} usePrefix={usePrefix} />)}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function labelRow(f) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 4 }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: "#333" }}>{f.label || "(unlabeled)"}</span>
+      {f.required && <span style={{ color: "#B42318", fontSize: 12 }}>*</span>}
+    </div>
+  );
+}
+function FieldPreview({ f, usePrefix }) {
+  const box = { border: "1px solid #ddd", borderRadius: 6, padding: "7px 9px", fontSize: 12.5, color: "#666", background: "#fff" };
+  let control;
+  if (f.type === "boolean") control = <div style={{ width: 34, height: 20, borderRadius: 20, background: "#ddd", position: "relative" }}><div style={{ position: "absolute", top: 2, left: 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,.2)" }} /></div>;
+  else if (f.type === "richtext") control = <div style={{ ...box, minHeight: 48, color: "#bbb" }}>Rich text editor…</div>;
+  else if (f.type === "textarea") control = <div style={{ ...box, minHeight: 40, color: "#bbb" }}></div>;
+  else if (f.type === "reference") control = <div style={{ ...box, display: "flex", alignItems: "center", gap: 8, color: "#999" }}><span style={{ width: 22, height: 22, borderRadius: 4, background: "#eee", display: "grid", placeItems: "center" }}>🖼</span> Select asset…</div>;
+  else if (f.type === "aem-content" || f.type === "aem-tag") control = <div style={{ ...box, color: "#999" }}>{f.type === "aem-tag" ? "Pick tags…" : "Select content…"}</div>;
+  else if (f.type === "select" || f.type === "radio-group") control = <SelectPreview raw={f.optionsRaw} radio={f.type === "radio-group"} value={f.value} />;
+  else if (f.type === "multiselect" || f.type === "checkbox-group") control = <MultiPreview raw={f.optionsRaw} inline check={f.type === "checkbox-group"} />;
+  else if (f.type === "date-time") control = <div style={{ ...box, color: "#999" }}>YYYY-MM-DD…</div>;
+  else if (f.type === "number") control = <div style={{ ...box, color: "#bbb" }}>{f.value || "0"}</div>;
+  else control = <div style={{ ...box, color: "#bbb" }}>{f.value || ""}</div>;
+
+  return (
+    <div>
+      {labelRow(f)}
+      {control}
+      {usePrefix && f.name && <div style={{ fontSize: 10, color: "#bbb", marginTop: 3, fontFamily: mono }}>→ {f.name}</div>}
+    </div>
+  );
+}
+function parseRawForPreview(raw) {
+  const out = []; let group = null;
+  (raw || "").split("\n").forEach((line) => {
+    const t = line.trim(); if (!t) return;
+    const isChild = /^\s{2,}|\t|^- /.test(line);
+    if (/:\s*$/.test(t) && !isChild) { group = { name: t.replace(/:\s*$/, ""), children: [] }; out.push(group); return; }
+    const nm = t.replace(/^-\s*/, "").split("=")[0].trim();
+    if (group && isChild) group.children.push(nm); else { out.push(nm); group = null; }
+  });
+  return out;
+}
+function SelectPreview({ raw, radio, value }) {
+  const opts = parseRawForPreview(raw).flatMap((o) => (typeof o === "string" ? [o] : o.children));
+  if (radio) return <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>{opts.slice(0, 5).map((o, i) => <label key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#555" }}><span style={{ width: 13, height: 13, borderRadius: "50%", border: "1.5px solid #ccc" }} />{o}</label>)}</div>;
+  return <div style={{ border: "1px solid #ddd", borderRadius: 6, padding: "7px 9px", fontSize: 12.5, color: "#555", background: "#fff", display: "flex", justifyContent: "space-between" }}><span>{value || opts[0] || "Select…"}</span><span style={{ color: "#bbb" }}>▾</span></div>;
+}
+function MultiPreview({ label, raw, inline, check }) {
+  const items = parseRawForPreview(raw);
+  return (
+    <div>
+      {label && <div style={{ fontSize: 12, fontWeight: 600, color: "#333", marginBottom: 5 }}>{label}</div>}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+        {items.slice(0, 8).map((o, i) => typeof o === "string"
+          ? <span key={i} style={chip}>{check ? "☐ " : ""}{o}</span>
+          : <div key={i} style={{ width: "100%" }}><div style={{ fontSize: 10.5, color: "#999", textTransform: "uppercase", letterSpacing: ".04em", margin: "4px 0 3px" }}>{o.name}</div><div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{o.children.slice(0, 8).map((c, j) => <span key={j} style={chip}>{c}</span>)}</div></div>
+        )}
+      </div>
+    </div>
+  );
+}
+const chip = { fontSize: 11.5, padding: "3px 9px", borderRadius: 20, background: "#eef2f0", color: "#3a5a52", border: "1px solid #dde7e3" };
+
+function Toggle({ on, onClick, label }) {
+  return (
+    <button onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", background: "none", border: "none", padding: 0, font: "inherit", color: C.ink }}>
+      <span style={{ width: 34, height: 20, borderRadius: 20, background: on ? C.accent : C.line, position: "relative", transition: "background .15s", flexShrink: 0 }}>
+        <span style={{ position: "absolute", top: 2, left: on ? 16 : 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left .15s", boxShadow: "0 1px 2px rgba(0,0,0,.2)" }} />
+      </span>
+      <span style={{ fontSize: 13 }}>{label}</span>
+    </button>
+  );
+}
+
+const inp = { width: "100%", padding: "9px 11px", borderRadius: 8, border: `1px solid ${C.line}`, background: "#fff", font: `13px ${sans}`, color: C.ink, boxSizing: "border-box", outline: "none" };
+const lab = { fontSize: 11, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase", color: C.sub, marginBottom: 5, display: "block" };
+const mini = { fontSize: 10, fontWeight: 600, letterSpacing: ".03em", textTransform: "uppercase", color: C.sub, marginBottom: 3, display: "block" };
+const arrow = { background: "none", border: "none", cursor: "pointer", color: C.sub, fontSize: 9, lineHeight: 1, padding: 0 };
+const xBtn = { background: "none", border: "none", color: C.sub, cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "2px 4px" };
+const dBtn = { background: "#4a4640", color: "#fff", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: sans };
+const dGhost = { background: "transparent", color: "#c9c4ba", border: "1px solid #4a4640", borderRadius: 7, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: sans };
+
+// Reusable field-list editor — used for both the parent's own fields and the item's fields.
+function FieldEditor({ heading, fields, usePrefix, onAdd, onRemove, onMove, onChange }) {
+  return (
+    <section style={{ marginBottom: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, letterSpacing: ".03em", textTransform: "uppercase", color: C.sub }}>{heading} · {fields.filter((f) => !FIELD_TYPES[f.type].isTab).length}</h2>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={() => onAdd("tab")} style={{ background: "#fff", color: C.sub, border: `1px solid ${C.line}`, borderRadius: 7, padding: "7px 11px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>+ Tab</button>
+          <button onClick={() => onAdd("text")} style={{ background: C.accent, color: "#fff", border: "none", borderRadius: 7, padding: "7px 13px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>+ Field</button>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+        {fields.map((f, i) => {
+          const meta = FIELD_TYPES[f.type];
+          if (meta.isTab) return (
+            <div key={f._id} style={{ display: "flex", alignItems: "center", gap: 8, background: "#F0EDE4", border: `1px dashed ${C.line}`, borderRadius: 9, padding: "8px 10px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <button onClick={() => onMove(f._id, -1)} disabled={i === 0} style={{ ...arrow, opacity: i === 0 ? .3 : 1 }}>▲</button>
+                <button onClick={() => onMove(f._id, 1)} disabled={i === fields.length - 1} style={{ ...arrow, opacity: i === fields.length - 1 ? .3 : 1 }}>▼</button>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: C.sub, textTransform: "uppercase", letterSpacing: ".05em" }}>Tab</span>
+              <input style={{ ...inp, padding: "6px 9px", flex: 1 }} value={f.label} onChange={(e) => onChange(f._id, { label: e.target.value })} placeholder="Tab label (e.g. Content)" />
+              <button onClick={() => onRemove(f._id)} style={xBtn}>×</button>
+            </div>
+          );
+          return (
+            <div key={f._id} style={{ border: `1px solid ${C.line}`, borderRadius: 10, background: "#fff", padding: 11 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingTop: 2 }}>
+                  <button onClick={() => onMove(f._id, -1)} disabled={i === 0} style={{ ...arrow, opacity: i === 0 ? .3 : 1 }}>▲</button>
+                  <button onClick={() => onMove(f._id, 1)} disabled={i === fields.length - 1} style={{ ...arrow, opacity: i === fields.length - 1 ? .3 : 1 }}>▼</button>
+                </div>
+                <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div><label style={mini}>Label</label><input style={{ ...inp, padding: "7px 9px" }} value={f.label} onChange={(e) => onChange(f._id, { label: e.target.value })} placeholder="Title" /></div>
+                  <div><label style={mini}>Type</label><select style={{ ...inp, padding: "7px 9px" }} value={f.type} onChange={(e) => onChange(f._id, { type: e.target.value })}>{TYPE_KEYS.filter((k) => !FIELD_TYPES[k].isTab).map((k) => <option key={k} value={k}>{FIELD_TYPES[k].label}</option>)}</select></div>
+                  <div><label style={mini}>name (optional)</label><input style={{ ...inp, padding: "7px 9px", fontFamily: mono, fontSize: 12 }} value={f.name} onChange={(e) => onChange(f._id, { name: e.target.value })} placeholder={composeName(f.name, f.label, usePrefix, f.col)} /></div>
+                  <div><label style={mini}>Default value</label><input style={{ ...inp, padding: "7px 9px", fontFamily: mono, fontSize: 12 }} value={f.value} onChange={(e) => onChange(f._id, { value: e.target.value })} placeholder="—" /></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, gridColumn: "1 / -1", paddingTop: 2, flexWrap: "wrap" }}>
+                    <Toggle on={f.required} onClick={() => onChange(f._id, { required: !f.required })} label="Required" />
+                    {meta.multi && <Toggle on={f.multi} onClick={() => onChange(f._id, { multi: !f.multi })} label="Multi" />}
+                    {usePrefix && (
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: C.ink }}>
+                        <span style={{ color: C.sub }}>Column</span>
+                        <select value={f.col || 1} onChange={(e) => onChange(f._id, { col: Number(e.target.value) })} style={{ padding: "4px 7px", borderRadius: 6, border: `1px solid ${C.line}`, background: "#fff", font: `12px ${mono}`, color: C.ink, outline: "none" }}>
+                          {[1, 2, 3, 4].map((c) => <option key={c} value={c}>col{c}_</option>)}
+                        </select>
+                      </label>
+                    )}
+                  </div>
+                  {meta.hasOptions && (
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                        <label style={{ ...mini, marginBottom: 0 }}>Options{meta.grouped ? " (supports Group: + children)" : ""}</label>
+                        {f.type === "select" && (
+                          <button onClick={() => onChange(f._id, { optionsRaw: "H1\nH2\nH3\nH4\nH5\nH6" })} style={{ background: "none", border: `1px solid ${C.line}`, borderRadius: 5, padding: "2px 8px", fontSize: 10.5, fontWeight: 600, color: C.accent, cursor: "pointer" }}>Fill H1–H6</button>
+                        )}
+                      </div>
+                      <textarea className="sc" style={{ ...inp, padding: "7px 9px", minHeight: 54, resize: "vertical", fontFamily: mono, fontSize: 12, whiteSpace: "pre" }} value={f.optionsRaw} onChange={(e) => onChange(f._id, { optionsRaw: e.target.value })} placeholder={"Small\nMedium\nLarge"} />
+                    </div>
+                  )}
+                  {meta.pairsAlt && !f.multi && (
+                    <div style={{ gridColumn: "1 / -1", fontSize: 11, color: C.accent, background: C.accentSoft, padding: "5px 8px", borderRadius: 6 }}>+ paired <code style={{ fontFamily: mono }}>{composeName(f.name, f.label, usePrefix, f.col)}Alt</code> text field</div>
+                  )}
+                  {meta.pairsText && (
+                    <div style={{ gridColumn: "1 / -1", fontSize: 11, color: C.accent, background: C.accentSoft, padding: "5px 8px", borderRadius: 6 }}>+ paired <code style={{ fontFamily: mono }}>{composeName(f.name, f.label, usePrefix, f.col)}Text</code> text field (link text)</div>
+                  )}
+                </div>
+                <button onClick={() => onRemove(f._id)} style={xBtn}>×</button>
+              </div>
+            </div>
+          );
+        })}
+        {!fields.length && <div style={{ border: `1px dashed ${C.line}`, borderRadius: 10, padding: 18, textAlign: "center", color: C.sub, fontSize: 12.5 }}>No fields yet.</div>}
+      </div>
+    </section>
+  );
+}
+
+function fieldListOps(setSpec, key) {
+  return {
+    add: (type = "text") => setSpec((s) => ({ ...s, [key]: [...s[key], newField(type)] })),
+    remove: (id) => setSpec((s) => ({ ...s, [key]: s[key].filter((f) => f._id !== id) })),
+    move: (id, d) => setSpec((s) => {
+      const arr = s[key];
+      const i = arr.findIndex((f) => f._id === id), j = i + d;
+      if (j < 0 || j >= arr.length) return s;
+      const fs = [...arr]; [fs[i], fs[j]] = [fs[j], fs[i]]; return { ...s, [key]: fs };
+    }),
+    change: (id, patch) => setSpec((s) => ({ ...s, [key]: s[key].map((f) => (f._id === id ? { ...f, ...patch } : f)) })),
+  };
+}
+
+function EDSBlockForge() {
+  const [spec, setSpec] = useState({
+    title: "Accordion", group: "Blocks", resourceType: "", shape: "container",
+    usePrefix: true, includeClasses: true, classesLabel: "Accordion Type",
+    classesRaw: "Accordion Behavior:\n  First Open = first-open\n  Single = single\n  Multiple = multiple\nSEO & Schema:\n  Enable FAQ Schema = seo-schema-enable",
+    itemRte: { enabled: true, paragraph: true, headings: ["h3"], table: true, link: true, unlink: true },
+    parentFields: [],
+    fields: [
+      { ...newField("text"), label: "Accordion Title", name: "title" },
+      { ...newField("select"), label: "Accordion Title Type", name: "titleType", value: "h3", optionsRaw: "H1\nH2\nH3\nH4\nH5\nH6" },
+      { ...newField("richtext"), label: "Main Body Content", name: "content" },
+    ],
+  });
+  const [tab, setTab] = useState("bundle");
+  const [copied, setCopied] = useState("");
+  const [viewMode, setViewMode] = useState("code");
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importErr, setImportErr] = useState("");
+  const [unmodeled, setUnmodeled] = useState([]);
+
+  const set = (p) => setSpec((s) => ({ ...s, ...p }));
+  const setRte = (p) => setSpec((s) => ({ ...s, itemRte: { ...s.itemRte, ...p } }));
+  const item = fieldListOps(setSpec, "fields");
+  const par = fieldListOps(setSpec, "parentFields");
+
+  const doImport = () => {
+    const result = importBundle(importText);
+    if (result.error) { setImportErr(result.error); return; }
+    setSpec(result.spec);
+    setUnmodeled(result.warnings || []);
+    setImportErr("");
+    setImportOpen(false);
+    setImportText("");
+    setTab("bundle");
+  };
+
+  const art = useMemo(() => buildArtifacts(spec), [spec]);
+  const { errs, warns } = useMemo(() => validate(spec, art), [spec, art]);
+  const filename = art.id || "my-block";
+  const isContainer = spec.shape === "container";
+
+  const tabs = useMemo(() => {
+    const t = [
+      { key: "bundle", label: `_${filename}.json`, data: art.bundle },
+      { key: "definition", label: "component-definition.json", data: art.componentDefinition },
+      { key: "models", label: "component-models.json", data: art.componentModels },
+    ];
+    if (art.componentFilters.length) t.push({ key: "filters", label: "component-filters.json", data: art.componentFilters });
+    return t;
+  }, [art, filename]);
+  const activeTab = tabs.find((t) => t.key === tab) || tabs[0];
+  const activeJson = JSON.stringify(activeTab.data, null, 2);
+
+  const copy = useCallback((text, key) => {
+    const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta);
+    ta.select(); try { document.execCommand("copy"); } catch (e) {} document.body.removeChild(ta);
+    setCopied(key); setTimeout(() => setCopied(""), 1400);
+  }, []);
+  const download = (text, name) => {
+    const b = new Blob([text], { type: "application/json" }), u = URL.createObjectURL(b);
+    const a = document.createElement("a"); a.href = u; a.download = name; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(u);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.paper, color: C.ink, fontFamily: sans }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        * { -webkit-font-smoothing: antialiased; }
+        .sc::-webkit-scrollbar { width: 9px; height: 9px; }
+        .sc::-webkit-scrollbar-thumb { background: #3a3733; border-radius: 6px; }
+        input:focus,textarea:focus,select:focus { border-color: ${C.accent} !important; box-shadow: 0 0 0 3px ${C.accentSoft}; }
+        @media (max-width: 940px){ .grid{ grid-template-columns:1fr !important } .prev{ position:static !important; height:auto !important } }
+      `}</style>
+
+      <header style={{ borderBottom: `1px solid ${C.line}`, padding: "16px 24px", display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 26, height: 26, borderRadius: 6, background: C.accent, display: "grid", placeItems: "center", color: "#fff", fontFamily: mono, fontWeight: 600, fontSize: 14 }}>{"{}"}</div>
+          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, letterSpacing: "-.01em" }}>EDS Block Forge</h1>
+        </div>
+        <p style={{ margin: 0, fontSize: 13, color: C.sub }}>Universal Editor block JSON — xwalk. Parent and item each get their own fields. Runs entirely in your browser.</p>
+      </header>
+
+      <div className="grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+        <div className="sc" style={{ padding: "20px 24px", borderRight: `1px solid ${C.line}` }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "inline-flex", background: "#fff", border: `1px solid ${C.line}`, borderRadius: 9, padding: 3 }}>
+              {[["simple", "Simple block"], ["container", "Container + item"]].map(([v, l]) => (
+                <button key={v} onClick={() => set({ shape: v })} style={{ border: "none", cursor: "pointer", borderRadius: 6, padding: "7px 14px", fontSize: 13, fontWeight: 600, background: spec.shape === v ? C.accent : "transparent", color: spec.shape === v ? "#fff" : C.sub }}>{l}</button>
+              ))}
+            </div>
+            <button onClick={() => setImportOpen((o) => !o)} style={{ background: importOpen ? C.ink : "#fff", color: importOpen ? "#fff" : C.ink, border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 13px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+              ↑ Import _block.json
+            </button>
+          </div>
+
+          {importOpen && (
+            <section style={{ marginBottom: 20, border: `1px solid ${C.ink}`, borderRadius: 10, background: "#fff", padding: 13 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Paste a full bundle — <code style={{ fontFamily: mono, fontWeight: 400 }}>{"{ definitions, models, filters }"}</code></div>
+              <textarea className="sc" style={{ ...inp, padding: "8px 10px", minHeight: 130, fontFamily: mono, fontSize: 11.5, resize: "vertical", whiteSpace: "pre" }} value={importText} onChange={(e) => { setImportText(e.target.value); setImportErr(""); }} placeholder='{"definitions":[...],"models":[...],"filters":[...]}' />
+              {importErr && <div style={{ color: C.red, fontSize: 12, marginTop: 6 }}>{importErr}</div>}
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button onClick={doImport} style={{ background: C.accent, color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Parse &amp; load</button>
+                <button onClick={() => { setImportOpen(false); setImportErr(""); }} style={{ background: "transparent", color: C.sub, border: `1px solid ${C.line}`, borderRadius: 7, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+              </div>
+            </section>
+          )}
+
+          {unmodeled.length > 0 && (
+            <section style={{ marginBottom: 20, border: `1px solid #BFDBFE`, borderRadius: 10, background: "#EFF6FF", padding: "10px 13px" }}>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "#1D4ED8", marginBottom: 6 }}>Preserved from import — not editable in this form, kept as-is on export</div>
+              {unmodeled.map((w, i) => <div key={i} style={{ fontSize: 12, color: "#1E40AF", marginBottom: 2 }}>· {w}</div>)}
+            </section>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div><label style={lab}>Block name</label><input style={inp} value={spec.title} onChange={(e) => set({ title: e.target.value })} placeholder="Accordion" /><div style={{ fontSize: 11, color: C.sub, marginTop: 4, fontFamily: mono }}>id: {art.id}{isContainer ? ` · ${art.id}-item` : ""}</div></div>
+            <div><label style={lab}>Author group</label><input style={inp} value={spec.group} onChange={(e) => set({ group: e.target.value })} placeholder="Blocks" /></div>
+          </div>
+          <div style={{ marginBottom: 14 }}><label style={lab}>resourceType (optional)</label><input style={inp} value={spec.resourceType} onChange={(e) => set({ resourceType: e.target.value })} placeholder="core/franklin/components/block/v1/block" /></div>
+
+          <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 20 }}>
+            <Toggle on={spec.usePrefix} onClick={() => set({ usePrefix: !spec.usePrefix })} label="colN_ column prefixes (set per field)" />
+            <Toggle on={spec.includeClasses} onClick={() => set({ includeClasses: !spec.includeClasses })} label={`classes style field${isContainer ? " (on parent)" : ""}`} />
+          </div>
+
+          {spec.includeClasses && (
+            <section style={{ marginBottom: 20, border: `1px solid ${C.line}`, borderRadius: 10, background: "#fff", padding: 13 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 8 }}>Styling · classes</div>
+              <div style={{ marginBottom: 8 }}><label style={mini}>Field label</label><input style={{ ...inp, padding: "7px 9px" }} value={spec.classesLabel} onChange={(e) => set({ classesLabel: e.target.value })} placeholder="Card Style" /></div>
+              <label style={mini}>Options — "Group:" then indented children, or one flat option per line. "Name = value" pins a value.</label>
+              <textarea className="sc" style={{ ...inp, padding: "8px 10px", minHeight: 96, fontFamily: mono, fontSize: 12, resize: "vertical", whiteSpace: "pre" }} value={spec.classesRaw} onChange={(e) => set({ classesRaw: e.target.value })} />
+            </section>
+          )}
+
+          {isContainer && (
+            <FieldEditor heading="Block fields (parent panel)" fields={spec.parentFields} usePrefix={spec.usePrefix}
+              onAdd={par.add} onRemove={par.remove} onMove={par.move} onChange={par.change} />
+          )}
+
+          <FieldEditor heading={isContainer ? "Item fields" : "Fields"} fields={spec.fields} usePrefix={spec.usePrefix}
+            onAdd={item.add} onRemove={item.remove} onMove={item.move} onChange={item.change} />
+
+          <section style={{ marginTop: 4, border: `1px solid ${C.line}`, borderRadius: 10, background: "#fff", padding: 13 }}>
+            <Toggle on={spec.itemRte.enabled} onClick={() => setRte({ enabled: !spec.itemRte.enabled })} label={`Rich text toolbar config${isContainer ? " (item filter)" : ""}`} />
+            {spec.itemRte.enabled && (
+              <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 14 }}>
+                <Toggle on={spec.itemRte.paragraph} onClick={() => setRte({ paragraph: !spec.itemRte.paragraph })} label="Paragraph" />
+                {["h2", "h3", "h4"].map((h) => (
+                  <Toggle key={h} on={spec.itemRte.headings.includes(h)} onClick={() => setRte({ headings: spec.itemRte.headings.includes(h) ? spec.itemRte.headings.filter((x) => x !== h) : [...spec.itemRte.headings, h] })} label={h.toUpperCase()} />
+                ))}
+                <Toggle on={spec.itemRte.table} onClick={() => setRte({ table: !spec.itemRte.table })} label="Table" />
+                <Toggle on={spec.itemRte.link} onClick={() => setRte({ link: !spec.itemRte.link })} label="Link" />
+                <Toggle on={spec.itemRte.unlink} onClick={() => setRte({ unlink: !spec.itemRte.unlink })} label="Unlink" />
+              </div>
+            )}
+          </section>
+        </div>
+
+        <div className="prev" style={{ position: "sticky", top: 0, height: "100vh", display: "flex", flexDirection: "column", background: C.code }}>
+          <div style={{ display: "flex", gap: 6, padding: "10px 12px 0" }}>
+            <div style={{ display: "inline-flex", background: "#2c2925", borderRadius: 8, padding: 3 }}>
+              {[["code", "Code"], ["preview", "Author panel"]].map(([v, l]) => (
+                <button key={v} onClick={() => setViewMode(v)} style={{ border: "none", cursor: "pointer", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 600, background: viewMode === v ? C.accent : "transparent", color: viewMode === v ? "#fff" : "#8b857c" }}>{l}</button>
+              ))}
+            </div>
+          </div>
+          {(errs.length || warns.length) > 0 && (
+            <div className="sc" style={{ padding: "10px 16px", borderBottom: "1px solid #2a2723", maxHeight: 120, overflowY: "auto" }}>
+              {errs.map((e, i) => <div key={"e" + i} style={{ fontSize: 12, color: "#FCA5A5", marginBottom: 3 }}><span style={{ color: C.red }}>●</span> {e}</div>)}
+              {warns.map((w, i) => <div key={"w" + i} style={{ fontSize: 12, color: "#FCD34D", marginBottom: 3 }}><span style={{ color: C.amber }}>▲</span> {w}</div>)}
+            </div>
+          )}
+          {viewMode === "preview" ? (
+            <div className="sc" style={{ flex: 1, overflow: "auto", background: "#F5F3EC", padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+              {isContainer && (
+                <div style={{ maxWidth: 420, width: "100%", margin: "0 auto" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#8a8578", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Block panel</div>
+                  <MiniPanel title={spec.title || "Block"} fields={spec.parentFields} usePrefix={spec.usePrefix}
+                    showClasses={spec.includeClasses} classesLabel={spec.classesLabel} classesRaw={spec.classesRaw}
+                    emptyNote="No block-level fields — authors see only the item list." />
+                </div>
+              )}
+              <div style={{ maxWidth: 420, width: "100%", margin: "0 auto" }}>
+                {isContainer && <div style={{ fontSize: 11, fontWeight: 700, color: "#8a8578", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Item panel</div>}
+                <MiniPanel title={isContainer ? `${spec.title || "Block"} Item` : (spec.title || "Block")} fields={spec.fields} usePrefix={spec.usePrefix}
+                  showClasses={!isContainer && spec.includeClasses} classesLabel={spec.classesLabel} classesRaw={spec.classesRaw} />
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", gap: 2, padding: "10px 12px 0", flexWrap: "wrap" }}>
+                {tabs.map((t) => (
+                  <button key={t.key} onClick={() => setTab(t.key)} style={{ background: activeTab.key === t.key ? "#2c2925" : "transparent", color: activeTab.key === t.key ? "#fff" : "#8b857c", border: "none", borderRadius: "7px 7px 0 0", padding: "7px 12px", fontSize: 12, fontFamily: mono, cursor: "pointer", whiteSpace: "nowrap" }}>{t.label}</button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, padding: "10px 16px", background: "#2c2925", alignItems: "center" }}>
+                <button onClick={() => copy(activeJson, "one")} style={dBtn}>{copied === "one" ? "✓ Copied" : "Copy"}</button>
+                <button onClick={() => download(activeJson, activeTab.label)} style={dGhost}>Download</button>
+                <div style={{ flex: 1 }} />
+                <button onClick={() => copy(JSON.stringify(art.bundle, null, 2), "all")} style={{ ...dBtn, background: C.accent }}>{copied === "all" ? "✓ Copied bundle" : `Copy _${filename}.json`}</button>
+              </div>
+              <pre className="sc" style={{ margin: 0, flex: 1, overflow: "auto", padding: "14px 18px", fontFamily: mono, fontSize: 12.5, lineHeight: 1.6, color: "#E8E6E1", whiteSpace: "pre" }}>
+                <code dangerouslySetInnerHTML={{ __html: hl(activeJson) }} />
+              </pre>
+            </>
+          )}
+          <div style={{ padding: "8px 16px", background: C.code, borderTop: "1px solid #2a2723", fontSize: 11, color: "#6f6a61", fontFamily: mono }}>Drop <b style={{ color: "#9b968d" }}>_{filename}.json</b> into <b style={{ color: "#9b968d" }}>models/</b> and run your build.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function hl(json) {
+  const esc = json.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return esc.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(\.\d+)?([eE][+-]?\d+)?)/g, (m) => {
+    let c = "#F0A868";
+    if (/^"/.test(m)) c = /:$/.test(m) ? "#7FD1B9" : "#E8C07D";
+    else if (/true|false|null/.test(m)) c = "#C792EA";
+    return `<span style="color:${c}">${m}</span>`;
+  });
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<EDSBlockForge />);
+</script>
+<script>
+  var src = document.getElementById("app-source").textContent;
+  var out = Babel.transform(src, { presets: [["react", { runtime: "classic" }]] });
+  var s = document.createElement("script");
+  s.textContent = out.code;
+  document.body.appendChild(s);
+</script>
+</body>
+</html>

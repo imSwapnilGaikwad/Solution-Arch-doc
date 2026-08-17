@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adobe EDS Training Plan — Comprehensive Roadmap</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --adobe-red: #FA0F00;
+            --dark: #1a1a2e;
+            --darker: #16213e;
+            --paper: #FBF7EC;
+            --ink: #2b2b2b;
+            --accent: #4ECDC4;
+            --module-1: #FFE0B2;
+            --module-2: #FFCCBC;
+            --module-3: #B3E5FC;
+            --module-4: #C8E6C9;
+            --border: #8B7355;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: var(--ink);
+            line-height: 1.6;
+        }
+
+        /* Hero */
+        .hero {
+            background: linear-gradient(135deg, var(--dark) 0%, var(--darker) 100%);
+            color: white;
+            padding: 60px 20px 80px;
+            text-align: center;
+        }
+        .hero h1 {
+            font-size: 2.4rem;
+            color: var(--adobe-red);
+            margin-bottom: 10px;
+        }
+        .hero h2 {
+            font-size: 1.2rem;
+            font-weight: 400;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+        .hero .meta {
+            display: inline-flex;
+            gap: 24px;
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 40px;
+            font-size: 0.95rem;
+            color: var(--accent);
+        }
+        .hero .meta span { display: flex; gap: 6px; align-items: center; }
+
+        /* Container */
+        .container {
+            max-width: 1100px;
+            margin: -40px auto 60px;
+            padding: 0 20px;
+        }
+
+        /* Overview roadmap */
+        .roadmap {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            margin-bottom: 40px;
+        }
+        .roadmap-item {
+            padding: 16px;
+            border-radius: 8px;
+            border: 2px dashed var(--border);
+            text-align: center;
+        }
+        .roadmap-item.m1 { background: var(--module-1); }
+        .roadmap-item.m2 { background: var(--module-2); }
+        .roadmap-item.m3 { background: var(--module-3); }
+        .roadmap-item.m4 { background: var(--module-4); }
+        .roadmap-item .num {
+            display: inline-block;
+            font-weight: bold;
+            background: var(--ink);
+            color: white;
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            line-height: 28px;
+            margin-bottom: 8px;
+        }
+        .roadmap-item h3 {
+            font-size: 0.95rem;
+            margin-bottom: 6px;
+        }
+        .roadmap-item p {
+            font-size: 0.8rem;
+            color: #555;
+        }
+
+        /* Module */
+        .module {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 32px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .module-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-bottom: 3px solid;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+        .module.m1 .module-header { border-color: #F57C00; }
+        .module.m2 .module-header { border-color: #E64A19; }
+        .module.m3 .module-header { border-color: #0288D1; }
+        .module.m4 .module-header { border-color: #388E3C; }
+
+        .module-badge {
+            font-size: 1.4rem;
+            font-weight: bold;
+            padding: 10px 18px;
+            border-radius: 8px;
+            color: white;
+        }
+        .module.m1 .module-badge { background: #F57C00; }
+        .module.m2 .module-badge { background: #E64A19; }
+        .module.m3 .module-badge { background: #0288D1; }
+        .module.m4 .module-badge { background: #388E3C; }
+
+        .module-header h2 {
+            font-size: 1.6rem;
+            color: var(--ink);
+        }
+        .module-header .duration {
+            margin-left: auto;
+            background: #f0f0f0;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .section {
+            margin-bottom: 24px;
+        }
+        .section h3 {
+            font-size: 1.15rem;
+            color: var(--darker);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section h3::before {
+            content: '';
+            width: 4px; height: 20px;
+            background: var(--adobe-red);
+            display: inline-block;
+        }
+        .section ul {
+            list-style: none;
+            padding-left: 12px;
+        }
+        .section ul li {
+            padding: 6px 0 6px 20px;
+            position: relative;
+        }
+        .section ul li::before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: var(--adobe-red);
+            font-weight: bold;
+        }
+        .section code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #d63384;
+        }
+
+        .callout {
+            background: #FFF8E1;
+            border-left: 4px solid #F9A825;
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin: 12px 0;
+            font-size: 0.95rem;
+        }
+        .callout.lab {
+            background: #E8F5E9;
+            border-left-color: #388E3C;
+        }
+        .callout strong {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--darker);
+        }
+
+        .docs-refs {
+            background: #ECEFF1;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+        .docs-refs h4 {
+            color: var(--darker);
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+        .docs-refs ul { list-style: none; padding: 0; }
+        .docs-refs li { margin: 4px 0; }
+        .docs-refs a {
+            color: #0288D1;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .docs-refs a:hover { text-decoration: underline; }
+
+        /* Schedule table */
+        .schedule {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 32px;
+        }
+        .schedule h2 {
+            color: var(--adobe-red);
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: var(--darker);
+            color: white;
+            font-weight: 600;
+        }
+        tr:hover td { background: #fafafa; }
+
+        /* Grid two-column */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .roadmap { grid-template-columns: 1fr 1fr; }
+            .two-col { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 1.8rem; }
+            .module-header { flex-wrap: wrap; }
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .footer a { color: var(--adobe-red); }
+    </style>
+</head>
+<body>
+
+    <div class="hero">
+        <h1>Adobe EDS (Edge Delivery Services)</h1>
+        <h2>Comprehensive Training Roadmap — from Kickoff to Completion</h2>
+        <div class="meta">
+            <span>⏱ Duration: 2 Days (10–12 hrs)</span>
+            <span>🎯 Level: Intermediate</span>
+            <span>📚 4 Modules</span>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <!-- Roadmap overview -->
+        <div class="roadmap">
+            <div class="roadmap-item m1">
+                <span class="num">1</span>
+                <h3>Project Structure</h3>
+                <p>EDS Standards, folders & setup</p>
+            </div>
+            <div class="roadmap-item m2">
+                <span class="num">2</span>
+                <h3>Block &amp; Component Modeling</h3>
+                <p>Authoring contract + Universal Editor</p>
+            </div>
+            <div class="roadmap-item m3">
+                <span class="num">3</span>
+                <h3>Block Decoration</h3>
+                <p>Advanced techniques, CSS, loading phases</p>
+            </div>
+            <div class="roadmap-item m4">
+                <span class="num">4</span>
+                <h3>Key Concepts</h3>
+                <p>EDS ecology, environments, page speed</p>
+            </div>
+        </div>
+
+        <!-- MODULE 1 -->
+        <div class="module m1">
+            <div class="module-header">
+                <div class="module-badge">1</div>
+                <h2>Project Structure (EDS Standards)</h2>
+                <div class="duration">~2 hrs</div>
+            </div>
+
+            <p><strong>Learning outcomes:</strong> Understand the AEM Boilerplate layout, how Git/GitHub connects to preview/live, and the role of each folder and file in a project.</p>
+
+            <div class="section">
+                <h3>a. File / Folder Organization</h3>
+                <ul>
+                    <li><code>blocks/&lt;blockname&gt;/</code> — block code: <code>_&lt;blockname&gt;.json</code> (UE partial model rules), <code>&lt;blockname&gt;.js</code>, <code>&lt;blockname&gt;.css</code></li>
+                    <li><code>styles/</code> — <code>styles.css</code> (LCP minimal), <code>lazy-styles.css</code> (below fold), <code>fonts.css</code></li>
+                    <li><code>scripts/</code> — <code>aem.js</code> (core AEM lib, do not modify), <code>scripts.js</code> (global utilities), <code>delayed.js</code> (delayed-phase loading)</li>
+                    <li><code>models/</code> — aggregate files: <code>component-definitions.json</code>, <code>component-models.json</code>, <code>component-filters.json</code></li>
+                    <li>Root: <code>head.html</code>, <code>404.html</code>, <code>.hlxignore</code></li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h3>b. Core Setup Commands</h3>
+                <ul>
+                    <li><code>npm install -g @adobe/aem-cli</code> — install the AEM CLI globally</li>
+                    <li><code>git clone &lt;repo&gt;</code> then <code>npm install</code></li>
+                    <li><code>aem up</code> — runs local dev at <code>http://localhost:3000</code> (leave running in the background)</li>
+                    <li><code>npm run lint</code> — run <code>eslint</code> (airbnb-base) + <code>stylelint</code> before every PR</li>
+                    <li><code>npm run build:json</code> — aggregate per-block JSON into <code>component-*.json</code></li>
+                </ul>
+            </div>
+
+            <div class="callout lab">
+                <strong>🧪 Hands-on Lab 1</strong>
+                Fork <code>adobe-rnd/aem-boilerplate-xwalk</code>, install AEM Code Sync bot, run <code>aem up</code>, and confirm your local site loads at <code>http://localhost:3000</code>. Modify <code>styles.css</code> and observe live reload.
+            </div>
+
+            <div class="docs-refs">
+                <h4>📖 Official aem.live references</h4>
+                <ul>
+                    <li>→ <a href="https://www.aem.live/developer/anatomy-of-a-project" target="_blank">The Anatomy of a Project</a></li>
+                    <li>→ <a href="https://www.aem.live/developer/ue-tutorial" target="_blank">Universal Editor Setup Tutorial</a></li>
+                    <li>→ <a href="https://github.com/adobe-rnd/aem-boilerplate-xwalk" target="_blank">Boilerplate Repository (xwalk)</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- MODULE 2 -->
+        <div class="module m2">
+            <div class="module-header">
+                <div class="module-badge">2</div>
+                <h2>Block &amp; Component Modeling</h2>
+                <div class="duration">~3 hrs</div>
+            </div>
+
+            <p><strong>Learning outcomes:</strong> Define the block authoring contract, wire it up for Universal Editor, and follow content-modeling guidelines that keep blocks intuitive for authors.</p>
+
+            <div class="section">
+                <h3>a. Authoring Contract (Content-First)</h3>
+                <ul>
+                    <li>Every block is authored as a <strong>table</strong>. First row = block name; body rows/cells define the content contract.</li>
+                    <li>Start with the content in a Word/Google Doc <em>before</em> writing code — validate the structure with authors.</li>
+                    <li>Same table contract works for both Document-based and Universal Editor authoring.</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h3>b. Universal Editor Integration</h3>
+                <p>Each block ships three JSON files that get aggregated into project-level manifests via <code>npm run build:json</code>:</p>
+                <ul>
+                    <li><code>_&lt;blockname&gt;.json</code> → block definition (template + default content) → aggregated into <strong><code>component-definitions.json</code></strong></li>
+                    <li><code>_&lt;blockname&gt;.json</code> → field model (richtext, text, select, image…) → aggregated into <strong><code>component-models.json</code></strong></li>
+                    <li>Filter entry → controls where the block is allowed inside sections → aggregated into <strong><code>component-filters.json</code></strong></li>
+                </ul>
+                <div class="callout">
+                    <strong>Three-phased block dev (recommended by Adobe):</strong>
+                    1️⃣ Define <em>definition + model</em> and ship to prod → 2️⃣ Author creates content with the new block → 3️⃣ Implement <em>decorate()</em> + CSS.
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>c. Guidelines</h3>
+                <ul>
+                    <li><strong>Max 3–4 columns</strong> per block table — keep it authorable.</li>
+                    <li><strong>1st fold = use existing Blocks</strong>, not new experimental ones (avoid LCP regressions).</li>
+                    <li>Prefer <strong>variant classes</strong> (block options like <code>quote (dark, wide)</code>) before creating a brand-new block.</li>
+                    <li>Never nest blocks — very confusing for authors.</li>
+                    <li>Use <code>moveInstrumentation()</code> whenever DOM is restructured so UE editing stays intact.</li>
+                </ul>
+            </div>
+
+            <div class="callout lab">
+                <strong>🧪 Hands-on Lab 2</strong>
+                Build a <em>Quote</em> block end-to-end: create the three JSON files, run <code>npm run build:json</code>, add the block via Universal Editor, and preview at <code>&lt;branch&gt;--&lt;repo&gt;--&lt;owner&gt;.aem.page</code>.
+            </div>
+
+            <div class="docs-refs">
+                <h4>📖 Official aem.live references</h4>
+                <ul>
+                    <li>→ <a href="https://www.aem.live/developer/universal-editor-blocks" target="_blank">Creating Blocks for the Universal Editor</a></li>
+                    <li>→ <a href="https://www.aem.live/developer/markup-sections-blocks" target="_blank">Markup, Sections, Blocks &amp; Auto Blocking</a></li>
+                    <li>→ <a href="https://www.aem.live/developer/component-model-definitions" target="_blank">Content Modeling — Component Model Definitions</a></li>
+                    <li>→ <a href="https://www.aem.live/developer/block-collection" target="_blank">Block Collection (reference implementations)</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- MODULE 3 -->
+        <div class="module m3">
+            <div class="module-header">
+                <div class="module-badge">3</div>
+                <h2>Block Decoration (Advanced Techniques)</h2>
+                <div class="duration">~3 hrs</div>
+            </div>
+
+            <p><strong>Learning outcomes:</strong> Master the <code>decorate()</code> pattern, write scoped mobile-first CSS, and understand the E-L-D three-phase loading architecture.</p>
+
+            <div class="section">
+                <h3>a. The Decorate Function (JS)</h3>
+                <p>Every block's <code>&lt;blockname&gt;.js</code> exports a default async function. Typical pattern:</p>
+                <ul>
+                    <li><strong>Load dependencies</strong> — <code>loadScript()</code> / <code>loadCSS()</code> only when needed by this block</li>
+                    <li><strong>Extract configuration</strong> from the raw table rows/cells (the authoring contract)</li>
+                    <li><strong>Transform DOM</strong> — replace nested <code>&lt;div&gt;</code>s with the semantic structure your CSS needs (preserve <code>data-aue-*</code>)</li>
+                    <li><strong>Add event listeners</strong> for interactivity</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h3>b. Scoped Styling (CSS)</h3>
+                <ul>
+                    <li><strong>Mobile-first</strong> — base styles = mobile; extend with <code>min-width</code> media queries only.</li>
+                    <li>Standard breakpoints: <code>600px</code>, <code>900px</code>, <code>1200px</code> — never mix <code>min-width</code> and <code>max-width</code>.</li>
+                    <li><strong>Isolate</strong> every selector to the block class (e.g. <code>.block.quote blockquote { … }</code>) — no bleed into other blocks.</li>
+                    <li>Avoid <code>{blockname}-container</code> selectors — use the block class itself or its section wrapper.</li>
+                    <li>Never use <code>!important</code> except in truly exceptional cases; leverage ARIA attributes for semantic styling hooks.</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h3>c. Three-Phase Loading Architecture (E-L-D)</h3>
+                <p>The entry point is <code>loadPage()</code> in <code>scripts.js</code>, which orchestrates three phases:</p>
+                <div class="two-col">
+                    <div class="callout">
+                        <strong>Phase E — Eager</strong>
+                        Everything needed to render the LCP: decorate DOM, load first section + LCP image + block JS/CSS. Keep payload &lt; 100 KB. Body starts hidden to avoid CLS.
+                    </div>
+                    <div class="callout">
+                        <strong>Phase L — Lazy</strong>
+                        Header, footer, remaining sections/blocks, images marked <code>loading="lazy"</code>, fonts. Should not affect TBT/FID.
+                    </div>
+                </div>
+                <div class="callout">
+                    <strong>Phase D — Delayed (<code>delayed.js</code>)</strong>
+                    Starts at least <strong>3 seconds after LCP</strong>. Martech, analytics, chat, consent — anything not critical to first paint. Should never block the main thread.
+                </div>
+            </div>
+
+            <div class="callout lab">
+                <strong>🧪 Hands-on Lab 3</strong>
+                Take the Quote block from Lab 2 and (1) write a scoped mobile-first stylesheet with a variant class <code>(dark)</code>, (2) rewrite the decorate function to convert the table into a semantic <code>&lt;blockquote&gt;</code>, (3) move an analytics snippet from eager to <code>delayed.js</code> and verify PSI improves.
+            </div>
+
+            <div class="docs-refs">
+                <h4>📖 Official aem.live references</h4>
+                <ul>
+                    <li>→ <a href="https://www.aem.live/developer/keeping-it-100#three-phase-loading-e-l-d" target="_blank">Three-Phase Loading (E-L-D)</a></li>
+                    <li>→ <a href="https://www.aem.live/docs/dev-collab-and-good-practices" target="_blank">Dev Collab &amp; Good Practices (CSS + JS sections)</a></li>
+                    <li>→ <a href="https://www.aem.live/developer/markup-sections-blocks" target="_blank">Markup, Sections, Blocks (block options)</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- MODULE 4 -->
+        <div class="module m4">
+            <div class="module-header">
+                <div class="module-badge">4</div>
+                <h2>Key Concepts (EDS Ecology)</h2>
+                <div class="duration">~2 hrs</div>
+            </div>
+
+            <p><strong>Learning outcomes:</strong> Navigate the EDS environments, understand the branch → preview → live workflow, and keep every PR at Lighthouse 100.</p>
+
+            <div class="section">
+                <h3>a. Environments (URLs &amp; Workflow)</h3>
+                <ul>
+                    <li><code>http://localhost:3000</code> — local development via <code>aem up</code></li>
+                    <li><code>https://&lt;branch&gt;--&lt;repo&gt;--&lt;owner&gt;.aem.page</code> — <strong>Feature Preview</strong> (auto-created per branch, unpublished content)</li>
+                    <li><code>https://main--&lt;repo&gt;--&lt;owner&gt;.aem.page</code> — <strong>Prod Preview</strong> (main branch, unpublished)</li>
+                    <li><code>https://main--&lt;repo&gt;--&lt;owner&gt;.aem.live</code> — <strong>Prod Live</strong> (published content)</li>
+                    <li>Constraint: <code>&lt;branch&gt;--&lt;repo&gt;--&lt;owner&gt;</code> must be ≤ 63 chars and cannot contain <code>--</code>.</li>
+                    <li>Workflow: <em>local → push branch → open PR → PSI check → merge to main → auto-deploy</em> (Code Sync bot).</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h3>b. Page Speed (Target: Lighthouse 100)</h3>
+                <ul>
+                    <li>Every PR is auto-tested by the AEM GitHub bot against PageSpeed Insights (mobile scores).</li>
+                    <li>Watch <strong>LCP</strong> (largest contentful paint) and <strong>CLS</strong> (cumulative layout shift) as primary indicators.</li>
+                    <li><strong>Image optimization</strong> — use the auto-rendered <code>&lt;picture&gt;</code> tag; never inline raw <code>&lt;img&gt;</code>.</li>
+                    <li><strong>Lazy loading</strong> — everything below fold goes via <code>lazy-styles.css</code> + <code>loading="lazy"</code>.</li>
+                    <li><strong>Anti-patterns to avoid:</strong> preconnect/preload for non-LCP assets, minification build steps, martech in <code>&lt;head&gt;</code>, second-origin fetches before LCP.</li>
+                    <li>Track real-user data via built-in RUM / Operational Telemetry once live.</li>
+                </ul>
+            </div>
+
+            <div class="callout lab">
+                <strong>🧪 Hands-on Lab 4</strong>
+                Open a PR containing your Quote block. Verify the auto PSI comment is ≥ 99 on mobile. Deliberately regress performance (e.g. add a large image without <code>loading="lazy"</code>), observe the failing PSI, then fix it.
+            </div>
+
+            <div class="docs-refs">
+                <h4>📖 Official aem.live references</h4>
+                <ul>
+                    <li>→ <a href="https://www.aem.live/developer/keeping-it-100" target="_blank">Keeping It 100 — Web Performance</a></li>
+                    <li>→ <a href="https://www.aem.live/docs/rum" target="_blank">Real User Monitoring (RUM)</a></li>
+                    <li>→ <a href="https://www.aem.live/docs/operational-telemetry" target="_blank">Operational Telemetry</a></li>
+                    <li>→ <a href="https://pagespeed.web.dev/" target="_blank">Google PageSpeed Insights</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Schedule -->
+        <div class="schedule">
+            <h2>📅 Suggested 2-Day Schedule</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Day</th>
+                        <th>Time</th>
+                        <th>Module / Activity</th>
+                        <th>Format</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td rowspan="4"><strong>Day 1</strong></td><td>09:00 – 09:30</td><td>Kickoff, prerequisites &amp; environment check</td><td>Presentation</td></tr>
+                    <tr><td>09:30 – 11:30</td><td>Module 1 — Project Structure + Lab 1</td><td>Live coding</td></tr>
+                    <tr><td>11:45 – 13:00</td><td>Module 2a–b — Authoring contract &amp; UE integration</td><td>Presentation + demo</td></tr>
+                    <tr><td>14:00 – 17:00</td><td>Module 2c + Lab 2 (Quote block end-to-end)</td><td>Hands-on</td></tr>
+                    <tr><td rowspan="4"><strong>Day 2</strong></td><td>09:00 – 10:30</td><td>Module 3a–b — decorate() &amp; scoped CSS</td><td>Live coding</td></tr>
+                    <tr><td>10:45 – 12:30</td><td>Module 3c — Three-phase loading + Lab 3</td><td>Hands-on</td></tr>
+                    <tr><td>13:30 – 15:00</td><td>Module 4 — Environments, workflow &amp; PSI</td><td>Presentation + demo</td></tr>
+                    <tr><td>15:15 – 17:00</td><td>Lab 4 (PR workflow) + Capstone review + Q&amp;A</td><td>Hands-on</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Prerequisites -->
+        <div class="module" style="border-top: 4px solid var(--adobe-red);">
+            <h2 style="color: var(--adobe-red); margin-bottom: 16px;">✅ Prerequisites for Attendees</h2>
+            <ul style="list-style: disc; padding-left: 24px;">
+                <li>GitHub account and comfort with Git basics (branch, PR, merge).</li>
+                <li>Node.js LTS + npm installed locally.</li>
+                <li>AEM as a Cloud Service sandbox access (for UE labs).</li>
+                <li>AEM Sidekick browser extension installed.</li>
+                <li>Working knowledge of HTML, modern JavaScript (ESM, async/await) and CSS.</li>
+                <li>VS Code (recommended) with ESLint + Stylelint plugins.</li>
+            </ul>
+        </div>
+
+    </div>
+
+    <div class="footer">
+        Adobe EDS Training Roadmap · Aligned with
+        <a href="https://www.aem.live/" target="_blank">aem.live</a> official documentation ·
+        <a href="index.html">Back to training index</a>
+    </div>
+
+</body>
+</html>
