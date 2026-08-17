@@ -243,6 +243,185 @@ function buildArtifacts(spec) {
   };
 }
 
+// ---------- doc source preview: models+sample data -> EDS authoring table ----------
+// Ports the field-grouping / cell-rendering conventions from bhellema/ue-modeler
+// (https://bhellema.github.io/ue-modeler/) so authors can sanity-check the Word/
+// Google-Doc table they'll need to build for this block, without leaving this tool.
+const DOC_SUFFIXES = ["Alt", "MimeType", "Type", "Text", "Title"];
+
+function escapeDocHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function isImageDocUrl(v) {
+  const ext = (v.split(".").pop() || "").toLowerCase();
+  return ["jpg", "png", "gif", "jpeg"].includes(ext);
+}
+function firstOptionValue(options) {
+  if (!options || !options.length) return "";
+  const o = options[0];
+  if (o.children) return o.children[0]?.value ?? "";
+  return o.value ?? "";
+}
+function sampleValueFor(field) {
+  if (field.value !== undefined && field.value !== null && String(field.value).trim() !== "") return field.value;
+  const label = field.label || field.name;
+  switch (field.component) {
+    case "reference": return "https://placehold.co/600x400.png";
+    case "aem-content": return "https://example.com";
+    case "richtext": return `${label} sample copy goes here.`;
+    case "textarea": return `Sample ${label}`;
+    case "number": return 42;
+    case "boolean": return true;
+    case "date-time": return new Date().toISOString().slice(0, 10);
+    case "select": case "radio-group": case "multiselect": case "checkbox-group":
+      return firstOptionValue(field.options);
+    case "aem-tag": return "sample-tag";
+    default: return /Alt$|Text$/.test(field.name) ? label : `Sample ${label}`;
+  }
+}
+// Groups fields the way EDS authoring tables collapse them into one cell:
+// shared colN_/prefix_ names group together; Alt/MimeType/Type/Text/Title
+// suffixes fold into the base field they describe (e.g. imageAlt -> image).
+function groupDocFields(fields, isChild) {
+  const groups = [];
+  fields
+    .filter((f) => f.component !== "tab" && (isChild || f.name !== "classes"))
+    .forEach((field) => {
+      if (field.name.includes("_")) {
+        const groupName = field.name.split("_")[0];
+        let groupObj = groups.find((g) => g.name === groupName);
+        if (!groupObj) { groupObj = { name: groupName, fields: [] }; groups.push(groupObj); }
+        const suffix = DOC_SUFFIXES.find((s) => field.name.endsWith(s));
+        const collapsedName = suffix ? field.name.substring(0, field.name.lastIndexOf(suffix)) : null;
+        const collapsedField = collapsedName ? groupObj.fields.find((f) => f.name === collapsedName) : null;
+        if (collapsedField) { collapsedField.collapsed = collapsedField.collapsed || []; collapsedField.collapsed.push(field); }
+        else groupObj.fields.push(field);
+      } else {
+        const suffix = DOC_SUFFIXES.find((s) => field.name.endsWith(s));
+        const groupName = suffix ? field.name.substring(0, field.name.indexOf(suffix)) : "";
+        const groupObj = groupName ? groups.find((g) => g.name === groupName) : null;
+        if (!groupObj) { groups.push({ name: field.name, fields: [field] }); }
+        else {
+          const collapsedField = groupObj.fields.find((f) => field.name.startsWith(f.name));
+          if (collapsedField) { collapsedField.collapsed = collapsedField.collapsed || []; collapsedField.collapsed.push(field); }
+          else groups.push({ name: field.name, fields: [field] });
+        }
+      }
+    });
+  return groups;
+}
+function renderDocFieldHtml(field, modelId) {
+  const val = field.value != null ? String(field.value) : "";
+  if (field.name === "classes") return `${modelId},${escapeDocHtml(val)}`;
+  const typeC = field.collapsed?.find((f) => f.name.endsWith("Type"));
+  if (typeC && ["h1", "h2", "h3", "h4", "h5", "h6"].includes(String(typeC.value))) {
+    return `<${typeC.value}>${escapeDocHtml(val)}</${typeC.value}>`;
+  }
+  if (val.startsWith("http") && isImageDocUrl(val)) {
+    const altC = field.collapsed?.find((f) => f.name.endsWith("Alt"));
+    return `<img src="${val}" alt="${altC ? escapeDocHtml(String(altC.value || "")) : ""}" style="max-width:100%;border-radius:4px;" />`;
+  }
+  if (val.startsWith("http") && !isImageDocUrl(val)) {
+    const textC = field.collapsed?.find((f) => f.name.endsWith("Text"));
+    let inner = `<a href="${val}">${textC ? escapeDocHtml(String(textC.value)) : ""}</a>`;
+    if (typeC && typeC.value) inner = typeC.value === "primary" ? `<strong>${inner}</strong>` : `<em>${inner}</em>`;
+    return inner;
+  }
+  return escapeDocHtml(val);
+}
+function renderDocFieldText(field, modelId) {
+  const val = field.value != null ? String(field.value) : "";
+  if (field.name === "classes") return `${modelId},${val}`;
+  const typeC = field.collapsed?.find((f) => f.name.endsWith("Type"));
+  if (typeC && ["h1", "h2", "h3", "h4", "h5", "h6"].includes(String(typeC.value))) {
+    return `${"#".repeat(Number(String(typeC.value)[1]))} ${val}`;
+  }
+  if (val.startsWith("http") && isImageDocUrl(val)) {
+    const altC = field.collapsed?.find((f) => f.name.endsWith("Alt"));
+    return `![${altC ? String(altC.value || "") : ""}](${val})`;
+  }
+  if (val.startsWith("http") && !isImageDocUrl(val)) {
+    const textC = field.collapsed?.find((f) => f.name.endsWith("Text"));
+    let s = `[${textC ? String(textC.value) : ""}](${val})`;
+    if (typeC && typeC.value) s = typeC.value === "primary" ? `**${s}**` : `*${s}*`;
+    return s;
+  }
+  return val;
+}
+function buildSampledModels(models) {
+  return models.map((m) => ({ ...m, fields: m.fields.filter((f) => f.component !== "tab").map((f) => ({ ...f, value: sampleValueFor(f) })) }));
+}
+function buildDocTable(models) {
+  const primary = models[0];
+  const classesField = primary.fields.find((f) => f.name === "classes");
+  const classesValue = classesField && classesField.value ? `(${classesField.value})` : "";
+  const titleText = primary.id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const headerText = classesValue ? `${titleText} ${classesValue}` : titleText;
+  const maxFields = Math.max(1, ...models.map((m, i) => groupDocFields(m.fields, i > 0).length));
+  const rows = [];
+  groupDocFields(primary.fields, false).forEach((g) => {
+    rows.push({
+      colspan: maxFields,
+      cellsHtml: [g.fields.map((f) => renderDocFieldHtml(f, primary.id)).join("<br/><br/>")],
+      cellsText: [g.fields.map((f) => renderDocFieldText(f, primary.id)).join("\n\n")],
+    });
+  });
+  if (models.length > 1) {
+    const item = models[1];
+    const groups = groupDocFields(item.fields, true);
+    rows.push({
+      colspan: 1,
+      cellsHtml: groups.map((g) => g.fields.map((f) => renderDocFieldHtml(f, item.id)).join("<br/><br/>")),
+      cellsText: groups.map((g) => g.fields.map((f) => renderDocFieldText(f, item.id)).join("\n\n")),
+    });
+  }
+  return { headerText, maxFields, rows };
+}
+function padDocCell(text, width) { return text + " ".repeat(Math.max(0, width - text.length)); }
+function toGridTableText(table) {
+  const { headerText, maxFields, rows } = table;
+  const numCols = rows.some((r) => r.colspan === 1) ? maxFields : 1;
+  const colWidths = new Array(numCols).fill(3);
+  rows.forEach((row) => {
+    if (row.colspan === 1 && numCols > 1) {
+      row.cellsText.forEach((cellText, i) => {
+        const w = Math.max(0, ...cellText.split("\n").map((l) => l.length));
+        colWidths[i] = Math.max(colWidths[i], w);
+      });
+    }
+  });
+  const totalInner = () => colWidths.reduce((a, b) => a + b, 0) + 3 * (numCols - 1);
+  const headerLines = headerText.split("\n");
+  const headerWidth = Math.max(...headerLines.map((l) => l.length));
+  rows.forEach((row) => {
+    if (row.colspan !== 1 || numCols === 1) {
+      const w = Math.max(0, ...row.cellsText[0].split("\n").map((l) => l.length));
+      if (w > totalInner()) colWidths[0] += w - totalInner();
+    }
+  });
+  if (headerWidth > totalInner()) colWidths[0] += headerWidth - totalInner();
+  const totalWidth = totalInner();
+  const hborder = (ch) => "+" + colWidths.map((w) => ch.repeat(w + 2)).join("+") + "+";
+  const spanBorder = (ch) => "+" + ch.repeat(totalWidth + 2) + "+";
+  const out = [spanBorder("-")];
+  headerLines.forEach((l) => out.push("| " + padDocCell(l, totalWidth) + " |"));
+  out.push(numCols > 1 ? hborder("=") : spanBorder("="));
+  rows.forEach((row) => {
+    if (row.colspan === 1 && numCols > 1) {
+      const cellLinesArr = row.cellsText.map((c) => c.split("\n"));
+      const maxLines = Math.max(...cellLinesArr.map((a) => a.length));
+      for (let li = 0; li < maxLines; li++) {
+        out.push("| " + cellLinesArr.map((lines, ci) => padDocCell(lines[li] || "", colWidths[ci])).join(" | ") + " |");
+      }
+      out.push(hborder("-"));
+    } else {
+      row.cellsText[0].split("\n").forEach((l) => out.push("| " + padDocCell(l, totalWidth) + " |"));
+      out.push(spanBorder("-"));
+    }
+  });
+  return out.join("\n");
+}
+
 function checkModelFields(model, label, errs) {
   if (!model) return;
   const names = model.fields.filter((f) => f.component !== "tab").map((f) => f.name);
@@ -751,6 +930,9 @@ function EDSBlockForge() {
   const filename = art.id || "my-block";
   const isContainer = spec.shape === "container";
 
+  const docTable = useMemo(() => buildDocTable(buildSampledModels(art.componentModels)), [art]);
+  const gridTableText = useMemo(() => toGridTableText(docTable), [docTable]);
+
   const tabs = useMemo(() => {
     const t = [
       { key: "bundle", label: `_${filename}.json`, data: art.bundle },
@@ -872,7 +1054,7 @@ function EDSBlockForge() {
         <div className="prev" style={{ position: "sticky", top: 0, height: "100vh", display: "flex", flexDirection: "column", background: C.code }}>
           <div style={{ display: "flex", gap: 6, padding: "10px 12px 0" }}>
             <div style={{ display: "inline-flex", background: "#2c2925", borderRadius: 8, padding: 3 }}>
-              {[["code", "Code"], ["preview", "Author panel (reference)"]].map(([v, l]) => (
+              {[["code", "Code"], ["preview", "Author panel (reference)"], ["docsource", "Doc Source"]].map(([v, l]) => (
                 <button key={v} onClick={() => setViewMode(v)} style={{ border: "none", cursor: "pointer", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 600, background: viewMode === v ? C.accent : "transparent", color: viewMode === v ? "#fff" : "#8b857c" }}>{l}</button>
               ))}
             </div>
@@ -901,6 +1083,38 @@ function EDSBlockForge() {
                 {isContainer && <div style={{ fontSize: 11, fontWeight: 700, color: "#8a8578", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Item panel</div>}
                 <MiniPanel title={isContainer ? `${spec.title || "Block"} Item` : (spec.title || "Block")} fields={spec.fields} usePrefix={spec.usePrefix}
                   showClasses={!isContainer && spec.includeClasses} classesLabel={spec.classesLabel} classesRaw={spec.classesRaw} />
+              </div>
+            </div>
+          ) : viewMode === "docsource" ? (
+            <div className="sc" style={{ flex: 1, overflow: "auto", background: "#F5F3EC", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FDF6E3", border: "1px solid #EFD9A0", borderRadius: 8, padding: "9px 12px" }}>
+                <span style={{ fontSize: 14, lineHeight: 1 }}>ⓘ</span>
+                <span style={{ fontSize: 11.5, color: "#7A5C10", lineHeight: 1.4 }}>What an author would build as a Word/Google Docs table for this block. Field grouping follows EDS authoring conventions (colN_ / shared prefixes share a cell; Alt, Type, Text, Title suffixes fold into the field they describe) — the same rules used by <a href="https://bhellema.github.io/ue-modeler/" target="_blank" style={{ color: "#7A5C10" }}>bhellema/ue-modeler</a>. Values shown are placeholders for any field without a Default value set in the editor.</span>
+              </div>
+
+              <div style={{ background: "#fff", borderRadius: 10, padding: 16, overflow: "auto", boxShadow: "0 1px 3px rgba(0,0,0,.1)" }}>
+                <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 13, color: "#1f1d1a" }}>
+                  <tbody>
+                    <tr>
+                      <th colSpan={docTable.maxFields} style={{ border: "1px solid #ccc", background: "#EDE7D3", padding: "9px 11px", textAlign: "left", fontWeight: 700 }}>{docTable.headerText}</th>
+                    </tr>
+                    {docTable.rows.map((row, ri) => (
+                      <tr key={ri}>
+                        {row.cellsHtml.map((html, ci) => (
+                          <td key={ci} colSpan={row.colspan} style={{ border: "1px solid #ccc", padding: "9px 11px", verticalAlign: "top" }} dangerouslySetInnerHTML={{ __html: html || "&nbsp;" }} />
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "#8a8578" }}>Grid-table markdown (doc source)</span>
+                  <button onClick={() => copy(gridTableText, "grid")} style={dGhost}>{copied === "grid" ? "✓ Copied" : "Copy"}</button>
+                </div>
+                <pre className="sc" style={{ margin: 0, background: C.code, borderRadius: 8, overflow: "auto", padding: "12px 14px", fontFamily: mono, fontSize: 12, lineHeight: 1.5, color: "#E8E6E1", whiteSpace: "pre" }}>{gridTableText}</pre>
               </div>
             </div>
           ) : (
