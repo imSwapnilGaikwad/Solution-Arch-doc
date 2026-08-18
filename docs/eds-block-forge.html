@@ -48,7 +48,6 @@ const FIELD_TYPES = {
   "aem-tag": { label: "AEM tag picker", component: "aem-tag" },
   "date-time": { label: "Date / time", component: "date-time" },
   custom: { label: "Custom / other component…", component: "", isCustom: true },
-  container: { label: "Container (nested multifield)", component: "container", isContainer: true, multi: true },
   tab: { label: "— Tab separator —", component: "tab", isTab: true },
 };
 const TYPE_KEYS = Object.keys(FIELD_TYPES);
@@ -95,7 +94,7 @@ const nid = () => `f${++uid}`;
 const newField = (type = "text") => ({
   _id: nid(), type, label: "", name: "", value: "", required: false, multi: false, optionsRaw: "", col: 1,
   description: "", rootPath: "", condField: "", condValue: "", pairText: false,
-  customComponent: "", extraKey: "", extraValue: "", fields: [],
+  customComponent: "", extraKey: "", extraValue: "",
   rte: { enabled: false, paragraph: false, headings: [], table: false, link: false, unlink: false },
 });
 
@@ -125,11 +124,11 @@ function coerce(v, meta) {
 }
 
 // text/select/etc → "string", number → "number", boolean → "boolean";
-// multiselect/checkbox-group/container conventionally omit valueType.
+// multiselect/checkbox-group conventionally omit valueType in real blocks.
 function defaultValueType(type) {
   if (type === "number") return "number";
   if (type === "boolean") return "boolean";
-  if (type === "multiselect" || type === "checkbox-group" || type === "container") return null;
+  if (type === "multiselect" || type === "checkbox-group") return null;
   return "string";
 }
 
@@ -165,18 +164,13 @@ function buildFields(fields, usePrefix) {
     if (f.description?.trim()) obj.description = f.description.trim();
     const vt = defaultValueType(f.type);
     if (vt) obj.valueType = vt;
-    if (!meta.isContainer && f.value?.toString().trim() !== "") obj.value = coerce(f.value, meta.isCustom ? { component: "text" } : meta);
+    if (f.value?.toString().trim() !== "") obj.value = coerce(f.value, meta.isCustom ? { component: "text" } : meta);
     if (meta.supportsRootPath && f.rootPath?.trim()) obj.validation = { rootPath: f.rootPath.trim() };
     if (f.condField?.trim()) obj.condition = { "==": [{ var: f.condField.trim() }, coerceCondValue(f.condValue)] };
     if (meta.multi) obj.multi = !!f.multi;
     if (f.required) obj.required = true;
     if (meta.hasOptions) obj.options = parseOptions(f.optionsRaw, meta.grouped);
     if (meta.isCustom && f.extraKey?.trim()) obj[f.extraKey.trim()] = tryParseExtra(f.extraValue);
-    // Nested multifield — xwalk doesn't allow a container inside a container,
-    // so this recursion is always exactly one level deep. Nested fields don't
-    // use colN_ prefixing: that's a doc-table convention and multifields are
-    // authored structurally in the Universal Editor rail, not as table columns.
-    if (meta.isContainer) obj.fields = buildFields(f.fields, false);
     if (f._extra && Object.keys(f._extra).length) Object.assign(obj, f._extra);
     out.push(obj);
     if (meta.pairsAlt && !f.multi) out.push({ component: "text", name: `${name}Alt`, label: `${label} — Alt Text`, valueType: "string" });
@@ -211,10 +205,7 @@ function buildRte(rte) {
 // override in the platform. This finds the first richtext field with RTE
 // configured and uses it as the model's shared config.
 function richtextConfigFor(fields) {
-  // A container has no model of its own — its nested fields still belong to
-  // the same model's filter scope, so flatten one level to include them.
-  const flat = (fields || []).flatMap((f) => (f.type === "container" ? f.fields || [] : [f]));
-  return flat.find((f) => f.type === "richtext" && f.rte?.enabled)?.rte || null;
+  return (fields || []).find((f) => f.type === "richtext" && f.rte?.enabled)?.rte || null;
 }
 function rteConfigsEqual(a, b) {
   const norm = (r) => JSON.stringify({ paragraph: !!r.paragraph, headings: [...(r.headings || [])].sort(), table: !!r.table, link: !!r.link, unlink: !!r.unlink });
@@ -322,7 +313,7 @@ function sampleValueFor(field) {
 function groupDocFields(fields, isChild) {
   const groups = [];
   fields
-    .filter((f) => f.component !== "tab" && f.component !== "container" && (isChild || f.name !== "classes"))
+    .filter((f) => f.component !== "tab" && (isChild || f.name !== "classes"))
     .forEach((field) => {
       if (field.name.includes("_")) {
         const groupName = field.name.split("_")[0];
@@ -384,15 +375,6 @@ function renderDocFieldText(field, modelId) {
     return s;
   }
   return val;
-}
-// Nested multifields aren't authored in the classic Word/Docs table — they're
-// edited structurally in the Universal Editor properties rail — so the doc
-// table can't show them. Surface which fields were left out instead of
-// silently dropping them or faking a table row that wouldn't work in practice.
-function collectContainerFields(models) {
-  const out = [];
-  models.forEach((m) => (m.fields || []).forEach((f) => { if (f.component === "container") out.push({ model: m.id, name: f.name, label: f.label }); }));
-  return out;
 }
 function buildSampledModels(models) {
   return models.map((m) => ({ ...m, fields: m.fields.filter((f) => f.component !== "tab").map((f) => ({ ...f, value: sampleValueFor(f) })) }));
@@ -473,11 +455,6 @@ function checkModelFields(model, label, errs) {
   const names = model.fields.filter((f) => f.component !== "tab").map((f) => f.name);
   [...new Set(names.filter((n, i) => names.indexOf(n) !== i))].forEach((n) => errs.push(`Duplicate field name "${n}" in ${label}.`));
   names.forEach((n) => { if (/_/.test(n.replace(/^col\d+_/, ""))) errs.push(`${label} field "${n}" has an underscore after the prefix — illegal in xwalk.`); });
-  model.fields.filter((f) => f.component === "container").forEach((c) => {
-    const nestedNames = (c.fields || []).map((f) => f.name);
-    [...new Set(nestedNames.filter((n, i) => nestedNames.indexOf(n) !== i))].forEach((n) => errs.push(`Duplicate field name "${n}" inside container "${c.name}" (${label}).`));
-    if (!c.fields || !c.fields.length) errs.push(`Container "${c.name}" (${label}) has no nested fields yet.`);
-  });
 }
 
 function validate(spec, art) {
@@ -511,8 +488,7 @@ function validate(spec, art) {
   // fields in the same model have picked different toolbars, since only the
   // first one configured actually takes effect for the whole model.
   const checkRteConflict = (arr, label) => {
-    const flat = (arr || []).flatMap((f) => (f.type === "container" ? f.fields || [] : [f]));
-    const configured = flat.filter((f) => f.type === "richtext" && f.rte?.enabled);
+    const configured = (arr || []).filter((f) => f.type === "richtext" && f.rte?.enabled);
     if (configured.length < 2) return;
     const [first, ...rest] = configured;
     const conflicting = rest.filter((f) => !rteConfigsEqual(first.rte, f.rte));
@@ -536,7 +512,7 @@ const COMPONENT_TO_TYPE = {
   "aem-content": "aem-content", "aem-content-fragment": "aem-content-fragment",
   number: "number", boolean: "boolean", select: "select",
   multiselect: "multiselect", "radio-group": "radio-group", "checkbox-group": "checkbox-group",
-  "aem-tag": "aem-tag", "date-time": "date-time", container: "container", tab: "tab",
+  "aem-tag": "aem-tag", "date-time": "date-time", tab: "tab",
 };
 const KNOWN_FIELD_DIRECT = new Set(["component", "name", "label", "valueType", "value", "multi", "required", "options", "description"]);
 const KNOWN_TEMPLATE_KEYS = new Set(["name", "model", "filter", "key-value"]);
@@ -603,7 +579,7 @@ function fieldFromJson(fj, warnings, ctx) {
     else warnings.push(`${ctx}: "${fj.name}" has a complex condition — preserved on export, not editable.`);
   }
 
-  const handled = new Set([...KNOWN_FIELD_DIRECT, "validation", "condition", "__pairText", ...(type === "container" ? ["fields"] : [])]);
+  const handled = new Set([...KNOWN_FIELD_DIRECT, "validation", "condition", "__pairText"]);
   const extra = {};
   let extraKey = "", extraValue = "";
   for (const k of Object.keys(fj)) {
@@ -613,16 +589,12 @@ function fieldFromJson(fj, warnings, ctx) {
   }
   if (Object.keys(extra).length) warnings.push(`${ctx}: "${fj.name}" has non-editable keys (${Object.keys(extra).join(", ")}) — preserved on export.`);
 
-  // Nested multifield fields are never Alt/Text auto-pair companions, so a
-  // plain recursive extractDataFields (no "classes" involved) is enough.
-  const nestedFields = type === "container" ? extractDataFields(fj.fields, warnings, `${ctx} > nested field`) : [];
-
   return {
     _id: nid(), type, label: fj.label || "", name: fj.name || "",
     col: col || 1, value: fj.value !== undefined ? String(fj.value) : "",
     multi: !!fj.multi, required: !!fj.required, optionsRaw: fj.options ? optionsToRaw(fj.options) : "",
     description: fj.description || "", rootPath, condField, condValue, pairText: !!fj.__pairText,
-    customComponent, extraKey, extraValue, fields: nestedFields,
+    customComponent, extraKey, extraValue,
     rte: { enabled: false, paragraph: false, headings: [], table: false, link: false, unlink: false },
     _extra: extra,
   };
@@ -631,11 +603,7 @@ function fieldFromJson(fj, warnings, ctx) {
 // richtext field in that model shares it — so apply it uniformly on import.
 function applyRteToFields(fields, rte) {
   if (!rte) return fields;
-  return (fields || []).map((f) => {
-    if (f.type === "richtext") return { ...f, rte: { ...rte, enabled: true } };
-    if (f.type === "container") return { ...f, fields: applyRteToFields(f.fields, rte) };
-    return f;
-  });
+  return (fields || []).map((f) => (f.type === "richtext" ? { ...f, rte: { ...rte, enabled: true } } : f));
 }
 // Drop the reference field's auto-generated "…Alt" companion and the
 // aem-content field's auto-generated "…Text" companion (both regenerated
@@ -848,36 +816,15 @@ const xBtn = { background: "none", border: "none", color: C.sub, cursor: "pointe
 const dBtn = { background: "#4a4640", color: "#fff", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: sans };
 const dGhost = { background: "transparent", color: "#c9c4ba", border: "1px solid #4a4640", borderRadius: 7, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: sans };
 
-// Builds add/remove/move/change ops for a container field's nested fields,
-// routed back through the parent list's own onChange (fields is just another
-// property on the container field object, patched like any other).
-function nestedFieldOps(containerField, onChangeParent) {
-  const fields = containerField.fields || [];
-  return {
-    add: (type = "text") => onChangeParent(containerField._id, { fields: [...fields, newField(type)] }),
-    remove: (id) => onChangeParent(containerField._id, { fields: fields.filter((f) => f._id !== id) }),
-    move: (id, d) => {
-      const i = fields.findIndex((f) => f._id === id), j = i + d;
-      if (j < 0 || j >= fields.length) return;
-      const fs = [...fields]; [fs[i], fs[j]] = [fs[j], fs[i]];
-      onChangeParent(containerField._id, { fields: fs });
-    },
-    change: (id, patch) => onChangeParent(containerField._id, { fields: fields.map((f) => (f._id === id ? { ...f, ...patch } : f)) }),
-  };
-}
-
-// Reusable field-list editor — used for the parent's own fields, the item's
-// fields, and (nested=true, one level only — xwalk disallows container-in-
-// container) a container field's own nested multifield fields.
-function FieldEditor({ heading, fields, usePrefix, onAdd, onRemove, onMove, onChange, nested }) {
-  const typeKeys = TYPE_KEYS.filter((k) => !FIELD_TYPES[k].isTab && !(nested && FIELD_TYPES[k].isContainer));
+// Reusable field-list editor — used for both the parent's own fields and the item's fields.
+function FieldEditor({ heading, fields, usePrefix, onAdd, onRemove, onMove, onChange }) {
   return (
-    <section style={{ marginBottom: nested ? 0 : 20 }}>
+    <section style={{ marginBottom: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
         <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, letterSpacing: ".03em", textTransform: "uppercase", color: C.sub }}>{heading} · {fields.filter((f) => !FIELD_TYPES[f.type].isTab).length}</h2>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {!nested && <button onClick={() => onAdd("tab")} style={{ background: "#fff", color: C.sub, border: `1px solid ${C.line}`, borderRadius: 7, padding: "7px 11px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>+ Tab</button>}
-          {!nested && <button onClick={() => onAdd("text", { label: "Custom class", name: "custom-class", description: "Space-separated class names to add to the block" })} style={{ background: "#fff", color: C.sub, border: `1px solid ${C.line}`, borderRadius: 7, padding: "7px 11px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>+ Custom class</button>}
+          <button onClick={() => onAdd("tab")} style={{ background: "#fff", color: C.sub, border: `1px solid ${C.line}`, borderRadius: 7, padding: "7px 11px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>+ Tab</button>
+          <button onClick={() => onAdd("text", { label: "Custom class", name: "custom-class", description: "Space-separated class names to add to the block" })} style={{ background: "#fff", color: C.sub, border: `1px solid ${C.line}`, borderRadius: 7, padding: "7px 11px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>+ Custom class</button>
           <button onClick={() => onAdd("text")} style={{ background: C.accent, color: "#fff", border: "none", borderRadius: 7, padding: "7px 13px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>+ Field</button>
         </div>
       </div>
@@ -905,11 +852,9 @@ function FieldEditor({ heading, fields, usePrefix, onAdd, onRemove, onMove, onCh
                 </div>
                 <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   <div><label style={mini}>Label</label><input style={{ ...inp, padding: "7px 9px" }} value={f.label} onChange={(e) => onChange(f._id, { label: e.target.value })} placeholder="Title" /></div>
-                  <div><label style={mini}>Type</label><select style={{ ...inp, padding: "7px 9px" }} value={f.type} onChange={(e) => onChange(f._id, { type: e.target.value })}>{typeKeys.map((k) => <option key={k} value={k}>{FIELD_TYPES[k].label}</option>)}</select></div>
+                  <div><label style={mini}>Type</label><select style={{ ...inp, padding: "7px 9px" }} value={f.type} onChange={(e) => onChange(f._id, { type: e.target.value })}>{TYPE_KEYS.filter((k) => !FIELD_TYPES[k].isTab).map((k) => <option key={k} value={k}>{FIELD_TYPES[k].label}</option>)}</select></div>
                   <div><label style={mini}>name (optional)</label><input style={{ ...inp, padding: "7px 9px", fontFamily: mono, fontSize: 12 }} value={f.name} onChange={(e) => onChange(f._id, { name: e.target.value })} placeholder={composeName(f.name, f.label, usePrefix, f.col)} /></div>
-                  {!meta.isContainer && (
-                    <div><label style={mini}>Default value</label><input style={{ ...inp, padding: "7px 9px", fontFamily: mono, fontSize: 12 }} value={f.value} onChange={(e) => onChange(f._id, { value: e.target.value })} placeholder="—" /></div>
-                  )}
+                  <div><label style={mini}>Default value</label><input style={{ ...inp, padding: "7px 9px", fontFamily: mono, fontSize: 12 }} value={f.value} onChange={(e) => onChange(f._id, { value: e.target.value })} placeholder="—" /></div>
 
                   {meta.isCustom && (
                     <>
@@ -943,7 +888,7 @@ function FieldEditor({ heading, fields, usePrefix, onAdd, onRemove, onMove, onCh
 
                   <div style={{ display: "flex", alignItems: "center", gap: 14, gridColumn: "1 / -1", paddingTop: 2, flexWrap: "wrap" }}>
                     <Toggle on={f.required} onClick={() => onChange(f._id, { required: !f.required })} label="Required" />
-                    {meta.multi && <Toggle on={f.multi} onClick={() => onChange(f._id, { multi: !f.multi })} label={meta.isContainer ? "Repeatable (multifield)" : "Multi"} />}
+                    {meta.multi && <Toggle on={f.multi} onClick={() => onChange(f._id, { multi: !f.multi })} label="Multi" />}
                     {meta.supportsPairText && <Toggle on={f.pairText} onClick={() => onChange(f._id, { pairText: !f.pairText })} label="Pair with Text field (for links)" />}
                     {usePrefix && (
                       <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: C.ink }}>
@@ -970,14 +915,6 @@ function FieldEditor({ heading, fields, usePrefix, onAdd, onRemove, onMove, onCh
                   )}
                   {meta.supportsPairText && f.pairText && (
                     <div style={{ gridColumn: "1 / -1", fontSize: 11, color: C.accent, background: C.accentSoft, padding: "5px 8px", borderRadius: 6 }}>+ paired <code style={{ fontFamily: mono }}>{composeName(f.name, f.label, usePrefix, f.col)}Text</code> text field (link text)</div>
-                  )}
-                  {meta.isContainer && (
-                    <div style={{ gridColumn: "1 / -1", marginTop: 6, paddingTop: 10, borderTop: `1px dashed ${C.line}` }}>
-                      <div style={{ fontSize: 10.5, color: C.sub, marginBottom: 8 }}>Authored structurally in the Universal Editor properties rail (an "Add" button per instance) — not typed into the Word/Docs table.</div>
-                      <FieldEditor heading="Nested fields" fields={f.fields || []} usePrefix={false} nested
-                        onAdd={nestedFieldOps(f, onChange).add} onRemove={nestedFieldOps(f, onChange).remove}
-                        onMove={nestedFieldOps(f, onChange).move} onChange={nestedFieldOps(f, onChange).change} />
-                    </div>
                   )}
                   {f.type === "richtext" && (
                     <div style={{ gridColumn: "1 / -1", marginTop: 6, paddingTop: 10, borderTop: `1px dashed ${C.line}` }}>
@@ -1087,7 +1024,6 @@ function EDSBlockForge() {
 
   const docTable = useMemo(() => buildDocTable(buildSampledModels(art.componentModels)), [art]);
   const gridTableText = useMemo(() => toGridTableText(docTable), [docTable]);
-  const containerFields = useMemo(() => collectContainerFields(art.componentModels), [art]);
 
   const tabs = useMemo(() => {
     const t = [
@@ -1244,15 +1180,6 @@ function EDSBlockForge() {
                 <span style={{ fontSize: 14, lineHeight: 1 }}>ⓘ</span>
                 <span style={{ fontSize: 11.5, color: "#7A5C10", lineHeight: 1.4 }}>What an author would build as a Word/Google Docs table for this block. Field grouping follows EDS authoring conventions (colN_ / shared prefixes share a cell; Alt, Type, Text, Title suffixes fold into the field they describe) — the same rules used by <a href="https://bhellema.github.io/ue-modeler/" target="_blank" style={{ color: "#7A5C10" }}>bhellema/ue-modeler</a>. Values shown are placeholders for any field without a Default value set in the editor.</span>
               </div>
-
-              {containerFields.length > 0 && (
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: "9px 12px" }}>
-                  <span style={{ fontSize: 14, lineHeight: 1 }}>ⓘ</span>
-                  <span style={{ fontSize: 11.5, color: "#1E40AF", lineHeight: 1.4 }}>
-                    {containerFields.length === 1 ? "1 structured field isn't" : `${containerFields.length} structured fields aren't`} shown in the table below — {containerFields.map((c) => `"${c.label || c.name}"`).join(", ")} {containerFields.length === 1 ? "is a" : "are"} nested multifield container{containerFields.length === 1 ? "" : "s"}, authored in the Universal Editor properties rail, not typed into the Word/Docs table.
-                  </span>
-                </div>
-              )}
 
               <div style={{ background: "#fff", borderRadius: 10, padding: 16, overflow: "auto", boxShadow: "0 1px 3px rgba(0,0,0,.1)" }}>
                 <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 13, color: "#1f1d1a" }}>
