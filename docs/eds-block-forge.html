@@ -95,7 +95,6 @@ const newField = (type = "text") => ({
   _id: nid(), type, label: "", name: "", value: "", required: false, multi: false, optionsRaw: "", col: 1,
   description: "", rootPath: "", condField: "", condValue: "", pairText: false,
   customComponent: "", extraKey: "", extraValue: "",
-  rte: { enabled: false, paragraph: false, headings: [], table: false, link: false, unlink: false },
 });
 
 function parseOptions(raw, allowGroups) {
@@ -200,18 +199,6 @@ function buildRte(rte) {
   return Object.keys(res).length ? res : null;
 }
 
-// xwalk's RTE filter is referenced once per model (template.filter), so every
-// richtext field in that model shares one toolbar — there's no per-field
-// override in the platform. This finds the first richtext field with RTE
-// configured and uses it as the model's shared config.
-function richtextConfigFor(fields) {
-  return (fields || []).find((f) => f.type === "richtext" && f.rte?.enabled)?.rte || null;
-}
-function rteConfigsEqual(a, b) {
-  const norm = (r) => JSON.stringify({ paragraph: !!r.paragraph, headings: [...(r.headings || [])].sort(), table: !!r.table, link: !!r.link, unlink: !!r.unlink });
-  return norm(a) === norm(b);
-}
-
 function classesField(spec) {
   return {
     component: "multiselect", name: "classes",
@@ -236,11 +223,10 @@ function buildArtifacts(spec) {
       id: pid, title,
       plugins: { xwalk: { page: { resourceType: parentRT, template: { name: title, model: pid, filter: pid, ...kv } } } },
     });
-    const itemRte = richtextConfigFor(spec.fields);
     definitions.push({
       title: `${title} Item`, id: iid,
       plugins: { xwalk: { page: { resourceType: `${parentRT}/item`,
-        template: { name: `${title} Item`, model: iid, ...(itemRte ? { filter: iid } : {}) } } } },
+        template: { name: `${title} Item`, model: iid, ...(spec.itemRte.enabled ? { filter: iid } : {}) } } } },
     });
     const parentFieldObjs = [
       ...(spec.includeClasses ? [classesField(spec)] : []),
@@ -249,7 +235,7 @@ function buildArtifacts(spec) {
     models.push({ id: pid, fields: parentFieldObjs });
     models.push({ id: iid, fields: buildFields(spec.fields, spec.usePrefix) });
     filters.push({ id: pid, components: [iid] });
-    if (itemRte) { const rte = buildRte(itemRte); if (rte) filters.push({ id: iid, rte }); }
+    if (spec.itemRte.enabled) { const rte = buildRte(spec.itemRte); if (rte) filters.push({ id: iid, rte }); }
   } else {
     definitions.push({
       id: pid, title,
@@ -260,8 +246,7 @@ function buildArtifacts(spec) {
       ...buildFields(spec.fields, spec.usePrefix),
     ];
     models.push({ id: pid, fields });
-    const blockRte = richtextConfigFor(spec.fields);
-    if (blockRte) { const rte = buildRte(blockRte); if (rte) filters.push({ id: pid, rte }); }
+    if (spec.itemRte.enabled) { const rte = buildRte(spec.itemRte); if (rte) filters.push({ id: pid, rte }); }
   }
 
   return {
@@ -484,21 +469,8 @@ function validate(spec, art) {
     checkConditions(spec.fields, "Block");
   }
 
-  // xwalk applies one RTE filter per model — flag it plainly when two richtext
-  // fields in the same model have picked different toolbars, since only the
-  // first one configured actually takes effect for the whole model.
-  const checkRteConflict = (arr, label) => {
-    const configured = (arr || []).filter((f) => f.type === "richtext" && f.rte?.enabled);
-    if (configured.length < 2) return;
-    const [first, ...rest] = configured;
-    const conflicting = rest.filter((f) => !rteConfigsEqual(first.rte, f.rte));
-    if (conflicting.length) {
-      warns.push(`${label}: "${conflicting.map((f) => f.label || f.name).join(", ")}" ${conflicting.length === 1 ? "has a" : "have"} different rich text toolbar than "${first.label || first.name}" — xwalk shares one toolbar per model, so "${first.label || first.name}"'s config wins for all rich text fields here.`);
-    }
-  };
-  checkRteConflict(spec.fields, spec.shape === "container" ? "Item" : "Block");
-  if (spec.shape === "container") checkRteConflict(spec.parentFields, "Block");
-
+  const anyRichtext = spec.fields.some((f) => f.type === "richtext") || (spec.parentFields || []).some((f) => f.type === "richtext");
+  if (spec.itemRte.enabled && !anyRichtext) warns.push("RTE toolbar is configured but no rich text field uses it.");
   return { errs, warns };
 }
 
@@ -595,15 +567,8 @@ function fieldFromJson(fj, warnings, ctx) {
     multi: !!fj.multi, required: !!fj.required, optionsRaw: fj.options ? optionsToRaw(fj.options) : "",
     description: fj.description || "", rootPath, condField, condValue, pairText: !!fj.__pairText,
     customComponent, extraKey, extraValue,
-    rte: { enabled: false, paragraph: false, headings: [], table: false, link: false, unlink: false },
     _extra: extra,
   };
-}
-// A model's rte filter isn't tied to a specific field in the JSON — every
-// richtext field in that model shares it — so apply it uniformly on import.
-function applyRteToFields(fields, rte) {
-  if (!rte) return fields;
-  return (fields || []).map((f) => (f.type === "richtext" ? { ...f, rte: { ...rte, enabled: true } } : f));
 }
 // Drop the reference field's auto-generated "…Alt" companion and the
 // aem-content field's auto-generated "…Text" companion (both regenerated
@@ -635,21 +600,14 @@ function importBundle(input) {
   const itemModel = itemDef ? modelsArr.find((m) => m.id === itemDef.id) : null;
   const classesFld = (parentModel?.fields || []).find((f) => f.name === "classes");
 
-  let parentFields = extractDataFields(parentModel?.fields, warnings, isContainer ? "Block field" : "Field");
-  let itemFields = isContainer ? extractDataFields(itemModel?.fields, warnings, "Item field") : [];
-
-  // The rte filter is per-model, not per-field — apply it to every richtext
-  // field in whichever model it targets (parent for a simple block or the
-  // container's own parent panel; item for a container's item model).
-  const parentRteFilter = filtersArr.find((f) => f.id === parentDef.id && f.rte);
-  if (parentRteFilter) parentFields = applyRteToFields(parentFields, rteFromJson(parentRteFilter.rte, warnings));
-  if (isContainer && itemDef) {
-    const itemRteFilter = filtersArr.find((f) => f.id === itemDef.id && f.rte);
-    if (itemRteFilter) itemFields = applyRteToFields(itemFields, rteFromJson(itemRteFilter.rte, warnings));
-  }
+  const parentFields = extractDataFields(parentModel?.fields, warnings, isContainer ? "Block field" : "Field");
+  const itemFields = isContainer ? extractDataFields(itemModel?.fields, warnings, "Item field") : [];
 
   const rt = parentDef.plugins?.xwalk?.page?.resourceType || "";
   const anyPrefixed = [...parentFields, ...itemFields].some((f) => /^col\d+_/.test(f.name));
+  const targetFilterId = isContainer ? itemDef.id : parentDef.id;
+  const rteFilter = filtersArr.find((f) => f.id === targetFilterId && f.rte);
+  const itemRte = rteFromJson(rteFilter?.rte, warnings);
 
   if (isContainer) {
     const parentFilter = filtersArr.find((f) => f.id === parentDef.id && f.components);
@@ -671,6 +629,7 @@ function importBundle(input) {
     includeClasses: !!classesFld,
     classesLabel: classesFld?.label || "",
     classesRaw: classesFld ? optionsToRaw(classesFld.options) : "",
+    itemRte,
     parentFields: isContainer ? parentFields : [],
     fields: isContainer ? itemFields : parentFields,
   };
@@ -916,25 +875,6 @@ function FieldEditor({ heading, fields, usePrefix, onAdd, onRemove, onMove, onCh
                   {meta.supportsPairText && f.pairText && (
                     <div style={{ gridColumn: "1 / -1", fontSize: 11, color: C.accent, background: C.accentSoft, padding: "5px 8px", borderRadius: 6 }}>+ paired <code style={{ fontFamily: mono }}>{composeName(f.name, f.label, usePrefix, f.col)}Text</code> text field (link text)</div>
                   )}
-                  {f.type === "richtext" && (
-                    <div style={{ gridColumn: "1 / -1", marginTop: 6, paddingTop: 10, borderTop: `1px dashed ${C.line}` }}>
-                      <Toggle on={f.rte?.enabled} onClick={() => onChange(f._id, { rte: { ...f.rte, enabled: !f.rte?.enabled } })} label="Rich text toolbar" />
-                      {f.rte?.enabled && (
-                        <>
-                          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 12 }}>
-                            <Toggle on={f.rte.paragraph} onClick={() => onChange(f._id, { rte: { ...f.rte, paragraph: !f.rte.paragraph } })} label="Paragraph" />
-                            {["h2", "h3", "h4"].map((h) => (
-                              <Toggle key={h} on={f.rte.headings.includes(h)} onClick={() => onChange(f._id, { rte: { ...f.rte, headings: f.rte.headings.includes(h) ? f.rte.headings.filter((x) => x !== h) : [...f.rte.headings, h] } })} label={h.toUpperCase()} />
-                            ))}
-                            <Toggle on={f.rte.table} onClick={() => onChange(f._id, { rte: { ...f.rte, table: !f.rte.table } })} label="Table" />
-                            <Toggle on={f.rte.link} onClick={() => onChange(f._id, { rte: { ...f.rte, link: !f.rte.link } })} label="Link" />
-                            <Toggle on={f.rte.unlink} onClick={() => onChange(f._id, { rte: { ...f.rte, unlink: !f.rte.unlink } })} label="Unlink" />
-                          </div>
-                          <div style={{ fontSize: 10.5, color: C.sub, marginTop: 8 }}>xwalk shares one toolbar per model — if another rich text field here picks a different config, only the first one configured wins. Both stay in sync if left identical.</div>
-                        </>
-                      )}
-                    </div>
-                  )}
                 </div>
                 <button onClick={() => onRemove(f._id)} style={xBtn}>×</button>
               </div>
@@ -966,11 +906,12 @@ function EDSBlockForge() {
     title: "Accordion", group: "Blocks", resourceType: "", shape: "container", keyValue: false,
     usePrefix: true, includeClasses: true, classesLabel: "Accordion Type",
     classesRaw: "Accordion Behavior:\n  First Open = first-open\n  Single = single\n  Multiple = multiple\nSEO & Schema:\n  Enable FAQ Schema = seo-schema-enable",
+    itemRte: { enabled: true, paragraph: true, headings: ["h3"], table: true, link: true, unlink: true },
     parentFields: [],
     fields: [
       { ...newField("text"), label: "Accordion Title", name: "title" },
       { ...newField("select"), label: "Accordion Title Type", name: "titleType", value: "h3", optionsRaw: "H1\nH2\nH3\nH4\nH5\nH6" },
-      { ...newField("richtext"), label: "Main Body Content", name: "content", rte: { enabled: true, paragraph: true, headings: ["h3"], table: true, link: true, unlink: true } },
+      { ...newField("richtext"), label: "Main Body Content", name: "content" },
     ],
   });
   const [tab, setTab] = useState("bundle");
@@ -984,6 +925,7 @@ function EDSBlockForge() {
   const [presetErr, setPresetErr] = useState("");
 
   const set = (p) => setSpec((s) => ({ ...s, ...p }));
+  const setRte = (p) => setSpec((s) => ({ ...s, itemRte: { ...s.itemRte, ...p } }));
   const item = fieldListOps(setSpec, "fields");
   const par = fieldListOps(setSpec, "parentFields");
 
@@ -1138,6 +1080,21 @@ function EDSBlockForge() {
 
           <FieldEditor heading={isContainer ? "Item fields" : "Fields"} fields={spec.fields} usePrefix={spec.usePrefix}
             onAdd={item.add} onRemove={item.remove} onMove={item.move} onChange={item.change} />
+
+          <section style={{ marginTop: 4, border: `1px solid ${C.line}`, borderRadius: 10, background: "#fff", padding: 13 }}>
+            <Toggle on={spec.itemRte.enabled} onClick={() => setRte({ enabled: !spec.itemRte.enabled })} label={`Rich text toolbar config${isContainer ? " (item filter)" : ""}`} />
+            {spec.itemRte.enabled && (
+              <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 14 }}>
+                <Toggle on={spec.itemRte.paragraph} onClick={() => setRte({ paragraph: !spec.itemRte.paragraph })} label="Paragraph" />
+                {["h2", "h3", "h4"].map((h) => (
+                  <Toggle key={h} on={spec.itemRte.headings.includes(h)} onClick={() => setRte({ headings: spec.itemRte.headings.includes(h) ? spec.itemRte.headings.filter((x) => x !== h) : [...spec.itemRte.headings, h] })} label={h.toUpperCase()} />
+                ))}
+                <Toggle on={spec.itemRte.table} onClick={() => setRte({ table: !spec.itemRte.table })} label="Table" />
+                <Toggle on={spec.itemRte.link} onClick={() => setRte({ link: !spec.itemRte.link })} label="Link" />
+                <Toggle on={spec.itemRte.unlink} onClick={() => setRte({ unlink: !spec.itemRte.unlink })} label="Unlink" />
+              </div>
+            )}
+          </section>
         </div>
 
         <div className="prev" style={{ position: "sticky", top: 0, height: "100vh", display: "flex", flexDirection: "column", background: C.code }}>
