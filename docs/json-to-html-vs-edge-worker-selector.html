@@ -1,463 +1,488 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JSON-to-HTML vs Edge Worker - Approach Selector</title>
-  <style>
-    :root {
-      --bg: #f7f7f5;
-      --card: #ffffff;
-      --border: #e2e1db;
-      --border-strong: #c9c7bd;
-      --text: #2c2c2a;
-      --text-muted: #6b6a63;
-      --accent: #185fa5;
-      --accent-bg: #e6f1fb;
-      --jh: #0f6e56;
-      --jh-bg: #e1f5ee;
-      --ew: #993c1d;
-      --ew-bg: #faece7;
-      --custom: #5f5e5a;
-      --custom-bg: #f1efe8;
-      --radius: 10px;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON-to-HTML vs Edge Worker — Approach Selector</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --card: #ffffff;
+    --border: #e2e1db;
+    --border-strong: #c9c7bd;
+    --text: #2c2c2a;
+    --text-muted: #6b6a63;
+    --accent: #185fa5;
+    --accent-bg: #e6f1fb;
+    --jh: #0f6e56;
+    --jh-bg: #e1f5ee;
+    --ew: #993c1d;
+    --ew-bg: #faece7;
+    --custom: #5f5e5a;
+    --custom-bg: #f1efe8;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px 80px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  .subtitle { color: var(--text-muted); font-size: 14px; margin: 0 0 20px; }
+  .banner {
+    background: var(--accent-bg);
+    border: 1px solid #b5d4f4;
+    color: #0c447c;
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+  .banner b { font-weight: 600; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 14px;
+    display: none;
+    animation: fadeIn 0.25s ease;
+  }
+  .card.visible { display: block; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .q-num {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-bg);
+    border-radius: 20px;
+    padding: 2px 9px;
+    margin-bottom: 10px;
+  }
+  .q-text { font-size: 15px; font-weight: 500; margin: 0 0 4px; }
+  .q-hint { font-size: 13px; color: var(--text-muted); margin: 0 0 14px; }
+  .options { display: flex; gap: 10px; flex-wrap: wrap; }
+  .options .opt { min-width: 160px; }
+  .opt {
+    flex: 1;
+    min-width: 120px;
+    border: 1.5px solid var(--border-strong);
+    background: var(--card);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 11px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .opt:hover { border-color: var(--accent); }
+  .opt.selected {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+    color: #0c447c;
+  }
+  .opt .label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 2px; }
+  .opt.selected .label { color: #0c447c; opacity: 0.75; }
+  .answered-tag {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 10px;
+  }
+  .result-card {
+    display: none;
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-top: 20px;
+    border: 2px solid;
+  }
+  .result-card.visible { display: block; animation: fadeIn 0.3s ease; }
+  .result-card.jh { background: var(--jh-bg); border-color: var(--jh); }
+  .result-card.ew { background: var(--ew-bg); border-color: var(--ew); }
+  .result-card.custom { background: var(--custom-bg); border-color: var(--custom); }
+  .result-title { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+  .result-card.jh .result-title { color: var(--jh); }
+  .result-card.ew .result-title { color: var(--ew); }
+  .result-card.custom .result-title { color: var(--custom); }
+  .result-sub { font-size: 13px; color: var(--text-muted); margin: 0 0 14px; }
+  .trail { font-size: 13px; color: var(--text); background: rgba(255,255,255,0.6); border-radius: 8px; padding: 12px 14px; }
+  .trail div { padding: 3px 0; }
+  .trail b { font-weight: 600; }
+  .reset-btn {
+    margin-top: 16px;
+    background: none;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .reset-btn:hover { border-color: var(--text); }
 
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      padding: 32px 16px 80px;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.5;
-    }
-
-    .wrap {
-      max-width: 640px;
-      margin: 0 auto;
-    }
-
-    h1 {
-      font-size: 22px;
-      font-weight: 600;
-      margin: 0 0 4px;
-    }
-
-    .subtitle {
-      color: var(--text-muted);
-      font-size: 14px;
-      margin: 0 0 20px;
-    }
-
-    .banner {
-      background: var(--accent-bg);
-      border: 1px solid #b5d4f4;
-      color: #0c447c;
-      border-radius: var(--radius);
-      padding: 12px 16px;
-      font-size: 13px;
-      margin-bottom: 24px;
-    }
-
-    .banner b { font-weight: 600; }
-
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
-      margin-bottom: 14px;
-      display: none;
-      animation: fadeIn 0.25s ease;
-    }
-
-    .card.visible { display: block; }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .q-num {
-      display: inline-block;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--accent);
-      background: var(--accent-bg);
-      border-radius: 20px;
-      padding: 2px 9px;
-      margin-bottom: 10px;
-    }
-
-    .q-text {
-      font-size: 15px;
-      font-weight: 500;
-      margin: 0 0 4px;
-    }
-
-    .q-hint {
-      font-size: 13px;
-      color: var(--text-muted);
-      margin: 0 0 14px;
-    }
-
-    .options {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .opt {
-      flex: 1;
-      min-width: 120px;
-      border: 1.5px solid var(--border-strong);
-      background: var(--card);
-      color: var(--text);
-      border-radius: 8px;
-      padding: 11px 14px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      text-align: left;
-      transition: border-color 0.15s, background 0.15s;
-    }
-
-    .opt:hover { border-color: var(--accent); }
-
-    .opt.selected {
-      border-color: var(--accent);
-      background: var(--accent-bg);
-      color: #0c447c;
-    }
-
-    .opt .label {
-      display: block;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--text-muted);
-      margin-bottom: 2px;
-    }
-
-    .opt.selected .label {
-      color: #0c447c;
-      opacity: 0.75;
-    }
-
-    .result-card {
-      display: none;
-      border-radius: var(--radius);
-      padding: 24px;
-      margin-top: 20px;
-      border: 2px solid;
-    }
-
-    .result-card.visible {
-      display: block;
-      animation: fadeIn 0.3s ease;
-    }
-
-    .result-card.jh {
-      background: var(--jh-bg);
-      border-color: var(--jh);
-    }
-
-    .result-card.ew {
-      background: var(--ew-bg);
-      border-color: var(--ew);
-    }
-
-    .result-card.custom {
-      background: var(--custom-bg);
-      border-color: var(--custom);
-    }
-
-    .result-title {
-      font-size: 20px;
-      font-weight: 700;
-      margin: 0 0 4px;
-    }
-
-    .result-card.jh .result-title { color: var(--jh); }
-    .result-card.ew .result-title { color: var(--ew); }
-    .result-card.custom .result-title { color: var(--custom); }
-
-    .result-sub {
-      font-size: 13px;
-      color: var(--text-muted);
-      margin: 0 0 14px;
-    }
-
-    .trail {
-      font-size: 13px;
-      color: var(--text);
-      background: rgba(255, 255, 255, 0.6);
-      border-radius: 8px;
-      padding: 12px 14px;
-    }
-
-    .trail div { padding: 3px 0; }
-    .trail b { font-weight: 600; }
-
-    .reset-btn {
-      margin-top: 16px;
-      background: none;
-      border: 1.5px solid var(--border-strong);
-      border-radius: 8px;
-      padding: 8px 16px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text);
-      cursor: pointer;
-    }
-
-    .reset-btn:hover { border-color: var(--text); }
-  </style>
+  .phase-heading {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin: 28px 0 10px;
+  }
+  .phase-heading:first-of-type { margin-top: 0; }
+  .phase-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: -4px 0 14px;
+  }
+  .hypothesis-box {
+    display: none;
+    margin-top: 12px;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13px;
+    border: 1.5px solid;
+  }
+  .hypothesis-box.visible { display: block; animation: fadeIn 0.2s ease; }
+  .hypothesis-box.jh { background: var(--jh-bg); border-color: var(--jh); color: #0a4c3a; }
+  .hypothesis-box.ew { background: var(--ew-bg); border-color: var(--ew); color: #6e2b14; }
+  .hypothesis-box.both { background: var(--custom-bg); border-color: var(--custom); color: #47463f; }
+  .consider-panel {
+    margin-top: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    background: var(--card);
+  }
+  .consider-panel h3 { font-size: 14px; margin: 0 0 10px; }
+  .consider-item { font-size: 13px; margin-bottom: 10px; }
+  .consider-item:last-child { margin-bottom: 0; }
+  .consider-item b { display: block; margin-bottom: 2px; }
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>JSON-to-HTML vs Edge Worker</h1>
-    <p class="subtitle">Answer each question to get a recommended approach for your page.</p>
-    <div class="banner">
-      <b>Global constraint:</b> the content overlay stays singular across the project - whichever pages end up JSON-to-HTML or Edge Worker, they all read from one canonical content source.<br>
-      <b>Hard gate:</b> if the backend call needs per-request authentication, the answer is always Edge Worker - no other question can override it.
-    </div>
+<div class="wrap">
+  <h1>JSON-to-HTML vs Edge Worker</h1>
+  <p class="subtitle">Phase 1: answer 3 quick questions about your requirement. Phase 2: confirm with the full checklist.</p>
+  <div class="banner">
+    <b>One rule for the whole project:</b> every page reads from the same content source, whether it ends up as JSON-to-HTML or Edge Worker.<br>
+    <b>One hard rule:</b> if the backend call needs login/auth, always use Edge Worker. Nothing else can change that answer.
+  </div>
 
-    <div class="card visible" id="card-q1">
-      <span class="q-num">Question 1</span>
-      <p class="q-text">Is the page SSR (server-side rendered)?</p>
-      <p class="q-hint">If it's not SSR, this decision doesn't apply - it's a custom block.</p>
-      <div class="options" data-q="q1">
-        <button class="opt" data-value="yes"><span class="label">Yes</span>Page is SSR</button>
-        <button class="opt" data-value="no"><span class="label">No</span>Not SSR</button>
-      </div>
-    </div>
+  <p class="phase-heading">Phase 1 &middot; Understand the Requirement</p>
+  <p class="phase-desc">Answer these to get a first guess. Phase 2 below will confirm it, or change it if needed.</p>
 
-    <div class="card" id="card-q2">
-      <span class="q-num">Question 2</span>
-      <p class="q-text">Single template, but multiple pages?</p>
-      <p class="q-hint">One template generating many instances (for example product ID or branch ID).</p>
-      <div class="options" data-q="q2">
-        <button class="opt" data-value="yes"><span class="label">Yes</span>Multiple pages, one template</button>
-        <button class="opt" data-value="no"><span class="label">No</span>Just one page</button>
-      </div>
-    </div>
-
-    <div class="card" id="card-q3">
-      <span class="q-num">Question 3 - hard gate</span>
-      <p class="q-text">Does the backend call require authentication management (token exchange, session validation, hiding a secret)?</p>
-      <p class="q-hint">If yes, this overrides everything below - a static build-time page can't securely hold live credentials.</p>
-      <div class="options" data-q="q3">
-        <button class="opt" data-value="yes"><span class="label">Yes</span>Auth required per request</button>
-        <button class="opt" data-value="no"><span class="label">No</span>Public / no credentials needed</button>
-      </div>
-    </div>
-
-    <div class="card" id="card-q4">
-      <span class="q-num">Question 4</span>
-      <p class="q-text">Does the page have a fixed block and component structure?</p>
-      <p class="q-hint">A fixed structure locks the decision to JSON-to-HTML regardless of later answers.</p>
-      <div class="options" data-q="q4">
-        <button class="opt" data-value="yes"><span class="label">Yes</span>Fixed structure</button>
-        <button class="opt" data-value="no"><span class="label">No</span>Structure varies</button>
-      </div>
-    </div>
-
-    <div class="card" id="card-q5">
-      <span class="q-num">Question 5</span>
-      <p class="q-text">Does the page need to be present / authorable in Universal Editor?</p>
-      <p class="q-hint">Identifier resolved at page level, in-context editing required.</p>
-      <div class="options" data-q="q5">
-        <button class="opt" data-value="yes"><span class="label">Yes</span>Needs Universal Editor presence</button>
-        <button class="opt" data-value="no"><span class="label">No</span>No Universal Editor authoring needed</button>
-      </div>
-    </div>
-
-    <div class="card" id="card-q6">
-      <span class="q-num">Question 6</span>
-      <p class="q-text">Where should the JSON-to-HTML template live?</p>
-      <p class="q-hint">Universal Editor only supports flat key-value mapping - no looping.</p>
-      <div class="options" data-q="q6">
-        <button class="opt" data-value="ue"><span class="label">UE-level</span>Flat key-value only</button>
-        <button class="opt" data-value="github"><span class="label">GitHub repo</span>Supports loops / logic</button>
-      </div>
-    </div>
-
-    <div class="result-card" id="result">
-      <p class="result-title" id="result-title"></p>
-      <p class="result-sub" id="result-sub"></p>
-      <div class="trail" id="result-trail"></div>
-      <button class="reset-btn" id="reset-btn">Start over</button>
+  <div class="card visible" id="card-r1">
+    <span class="q-num">Question 1</span>
+    <p class="q-text">Where does the page Identifier come from?</p>
+    <div class="options" data-q="r1">
+      <button class="opt" data-value="live"><span class="label">From the page</span>The page Identifier, or the URL, tells us which data to show</button>
+      <button class="opt" data-value="enumerated"><span class="label">From a list</span>We already have a list of IDs (from an API or GraphQL) to build pages from</button>
     </div>
   </div>
 
-  <script>
-    const answers = {};
-    const cardOrder = ["q1", "q2", "q3", "q4", "q5", "q6"];
+  <div class="card" id="card-r2">
+    <span class="q-num">Question 2</span>
+    <p class="q-text">Will every page look the same?</p>
+    <div class="options" data-q="r2">
+      <button class="opt" data-value="same"><span class="label">Yes</span>All pages use the same layout</button>
+      <button class="opt" data-value="exception"><span class="label">No</span>A few pages need a different block or layout</button>
+    </div>
+  </div>
 
-    function selectOption(question, value, button) {
-      answers[question] = value;
-      document.querySelectorAll(`#card-${question} .opt`).forEach((option) => option.classList.remove("selected"));
-      button.classList.add("selected");
-      advance();
+  <div class="card" id="card-r3">
+    <span class="q-num">Question 3</span>
+    <p class="q-text">Do you need AEM middleware to call the API?</p>
+    <div class="options" data-q="r3">
+      <button class="opt" data-value="no"><span class="label">No</span>We can call the API directly</button>
+      <button class="opt" data-value="single"><span class="label">Yes</span>Middleware combines the data into one feed for one template</button>
+      <button class="opt" data-value="unsure"><span class="label">Not sure</span>We need middleware but haven't decided the shape yet</button>
+    </div>
+  </div>
+
+  <div class="hypothesis-box" id="hypothesis-box"></div>
+
+  <p class="phase-heading">Phase 2 &middot; Full Checklist</p>
+  <p class="phase-desc">Answer each question to check, or change, the guess from Phase 1.</p>
+
+  <div class="card visible" id="card-q1">
+    <span class="q-num">Question 1</span>
+    <p class="q-text">Is the page server-rendered?</p>
+    <p class="q-hint">If not, skip this — just build a normal block instead.</p>
+    <div class="options" data-q="q1">
+      <button class="opt" data-value="yes"><span class="label">Yes</span>It's server-rendered</button>
+      <button class="opt" data-value="no"><span class="label">No</span>It's not server-rendered</button>
+    </div>
+  </div>
+
+  <div class="card" id="card-q2">
+    <span class="q-num">Question 2</span>
+    <p class="q-text">Does one template make many pages?</p>
+    <p class="q-hint">For example, one layout used for every product or every branch.</p>
+    <div class="options" data-q="q2">
+      <button class="opt" data-value="yes"><span class="label">Yes</span>One template, many pages</button>
+      <button class="opt" data-value="no"><span class="label">No</span>Just a single page</button>
+    </div>
+  </div>
+
+  <div class="card" id="card-q3">
+    <span class="q-num">Question 3 &middot; most important</span>
+    <p class="q-text">Does the API call need login or a secret key?</p>
+    <p class="q-hint">If yes, this decides everything — a static page can't safely hold a live login or key.</p>
+    <div class="options" data-q="q3">
+      <button class="opt" data-value="yes"><span class="label">Yes</span>Needs login/secret every time</button>
+      <button class="opt" data-value="no"><span class="label">No</span>Open data, no login needed</button>
+    </div>
+  </div>
+
+  <div class="card" id="card-q4">
+    <span class="q-num">Question 4</span>
+    <p class="q-text">Does the page have a fixed layout?</p>
+    <p class="q-hint">If the blocks and layout never change, this answer wins over later questions.</p>
+    <div class="options" data-q="q4">
+      <button class="opt" data-value="yes"><span class="label">Yes</span>Layout is fixed</button>
+      <button class="opt" data-value="no"><span class="label">No</span>Layout can change</button>
+    </div>
+  </div>
+
+  <div class="card" id="card-q5">
+    <span class="q-num">Question 5</span>
+    <p class="q-text">Does the page need to open and be edited in Universal Editor?</p>
+    <p class="q-hint">Authors need to see and edit it live, not just view the output.</p>
+    <div class="options" data-q="q5">
+      <button class="opt" data-value="yes"><span class="label">Yes</span>Must open in Universal Editor</button>
+      <button class="opt" data-value="no"><span class="label">No</span>No editing needed there</button>
+    </div>
+  </div>
+
+  <div class="card" id="card-q6">
+    <span class="q-num">Question 6</span>
+    <p class="q-text">Where should the template live?</p>
+    <p class="q-hint">Universal Editor can only fill in flat values — it can't repeat or loop items.</p>
+    <div class="options" data-q="q6">
+      <button class="opt" data-value="ue"><span class="label">Universal Editor</span>Simple, flat values only</button>
+      <button class="opt" data-value="github"><span class="label">GitHub repo</span>Needs loops or extra logic</button>
+    </div>
+  </div>
+
+  <div class="result-card" id="result">
+    <p class="result-title" id="result-title"></p>
+    <p class="result-sub" id="result-sub"></p>
+    <div class="trail" id="result-trail"></div>
+    <button class="reset-btn" id="reset-btn">Start over</button>
+  </div>
+
+  <div class="consider-panel">
+    <h3>A few more things to think about (this won't change the answer above)</h3>
+    <div class="consider-item">
+      <b>How fresh does the data need to be?</b>
+      If people must always see the newest value with no delay, use Edge Worker. If it's fine to update on a schedule or on publish, JSON-to-HTML is simpler. If the API goes down, JSON-to-HTML still shows the last good page automatically — Edge Worker needs extra code to handle that.
+    </div>
+    <div class="consider-item">
+      <b>Who will make changes later?</b>
+      If a content editor should be able to update the page without a developer, use JSON-to-HTML. If every small change needs a developer to write code and deploy it, that's the ongoing cost of Edge Worker — and if your team hasn't set up edge deployment before, budget time for that too.
+    </div>
+    <div class="consider-item">
+      <b>Who fixes it when it breaks?</b>
+      Edge Worker is application code — it needs its own monitoring, logging, and someone on call, plus a fast way to roll back a bad deploy. JSON-to-HTML rides on the normal EDS publish and CDN setup, so there's less to watch — but a content or data change still needs someone (or something) to trigger a rebuild.
+    </div>
+  </div>
+</div>
+
+<script>
+  const rAnswers = {};
+
+  const hypothesisMsg = {
+    ew: 'First guess: Edge Worker. The page needs its own live API call — check this against Phase 2 below.',
+    jh_plain: 'First guess: JSON-to-HTML. You already have a list of pages to build from one template — check this against Phase 2 below.',
+    jh_exception: 'First guess: JSON-to-HTML for most pages. Handle the few different pages with their own template code in the repo — check this against Phase 2 below.',
+    jh_middleware: 'First guess: JSON-to-HTML. Middleware combines the data first, then one template builds every page — check this against Phase 2 below.',
+    both: 'Not clear yet — both could work. Needing middleware alone doesn\'t decide it. Phase 2 below will settle it, mostly based on whether the data can be combined ahead of time or only live.'
+  };
+
+  function renderHypothesis(key) {
+    const kindMap = { ew: 'ew', jh_plain: 'jh', jh_exception: 'jh', jh_middleware: 'jh', both: 'both' };
+    const box = document.getElementById('hypothesis-box');
+    box.className = `hypothesis-box visible ${kindMap[key]}`;
+    box.textContent = hypothesisMsg[key];
+  }
+  function hideHypothesis() {
+    document.getElementById('hypothesis-box').classList.remove('visible');
+  }
+
+  function requirementAdvance() {
+    hideHypothesis();
+
+    if (rAnswers.r1 === 'live') {
+      ['r2', 'r3'].forEach(hideCard);
+      delete rAnswers.r2; delete rAnswers.r3;
+      renderHypothesis('ew');
+      return;
+    }
+    if (rAnswers.r1 !== 'enumerated') { ['r2', 'r3'].forEach(hideCard); return; }
+
+    showCard('r2');
+    if (!rAnswers.r2) { hideCard('r3'); delete rAnswers.r3; return; }
+
+    if (rAnswers.r2 === 'exception') {
+      hideCard('r3');
+      delete rAnswers.r3;
+      renderHypothesis('jh_exception');
+      return;
     }
 
-    document.querySelectorAll(".options").forEach((group) => {
-      const question = group.dataset.q;
-      group.querySelectorAll(".opt").forEach((button) => {
-        button.addEventListener("click", () => selectOption(question, button.dataset.value, button));
-      });
+    showCard('r3');
+    if (!rAnswers.r3) { return; }
+
+    if (rAnswers.r3 === 'no') { renderHypothesis('jh_plain'); return; }
+    if (rAnswers.r3 === 'single') { renderHypothesis('jh_middleware'); return; }
+    if (rAnswers.r3 === 'unsure') { renderHypothesis('both'); return; }
+  }
+
+  document.querySelectorAll('#card-r1 .options .opt, #card-r2 .options .opt, #card-r3 .options .opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const group = btn.closest('.options');
+      const q = group.dataset.q;
+      rAnswers[q] = btn.dataset.value;
+      group.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+      btn.classList.add('selected');
+      requirementAdvance();
     });
+  });
 
-    function showCard(id) {
-      document.getElementById(`card-${id}`).classList.add("visible");
-    }
+  const answers = {};
 
-    function hideCard(id) {
-      document.getElementById(`card-${id}`).classList.remove("visible");
-      delete answers[id];
-      document.querySelectorAll(`#card-${id} .opt`).forEach((option) => option.classList.remove("selected"));
-    }
+  const cardOrder = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6'];
 
-    function hideResult() {
-      document.getElementById("result").classList.remove("visible");
-    }
+  function selectOption(question, value, btn) {
+    answers[question] = value;
+    document.querySelectorAll(`#card-${question} .opt`).forEach(o => o.classList.remove('selected'));
+    btn.classList.add('selected');
+    advance();
+  }
 
-    function advance() {
-      hideResult();
-
-      if (answers.q1 === "no") {
-        ["q2", "q3", "q4", "q5", "q6"].forEach(hideCard);
-        renderResult("custom", "Custom block", "Page is not SSR - this decision does not apply.", [
-          ["Question 1", "Is the page SSR?", "No -> Custom block"]
-        ]);
-        return;
-      }
-
-      if (answers.q1 !== "yes") {
-        ["q2", "q3", "q4", "q5", "q6"].forEach(hideCard);
-        return;
-      }
-
-      showCard("q2");
-      if (!answers.q2) {
-        ["q3", "q4", "q5", "q6"].forEach(hideCard);
-        return;
-      }
-
-      showCard("q3");
-      if (!answers.q3) {
-        ["q4", "q5", "q6"].forEach(hideCard);
-        return;
-      }
-
-      const trail = [
-        ["Question 1", "Is the page SSR?", "Yes"],
-        ["Question 2", "Single template, multiple pages?", answers.q2 === "yes" ? "Yes - both JSON-to-HTML and Edge Worker considered" : "No - lean JSON-to-HTML"]
-      ];
-
-      if (answers.q3 === "yes") {
-        ["q4", "q5", "q6"].forEach(hideCard);
-        trail.push(["Question 3", "Auth management required?", "Yes -> Edge Worker (hard gate, overrides everything below)"]);
-        renderResult(
-          "ew",
-          "Edge Worker",
-          "Backend call requires per-request authentication - a static build-time page has no secure place to hold live credentials. This needs an edge worker brokering the call: Browser -> Edge Worker -> Backend.",
-          trail
-        );
-        return;
-      }
-
-      trail.push(["Question 3", "Auth management required?", "No -> continue to Question 4"]);
-
-      showCard("q4");
-      if (!answers.q4) {
-        renderPending();
-        return;
-      }
-
-      if (answers.q4 === "yes") {
-        hideCard("q5");
-        trail.push(["Question 4", "Fixed block/component structure?", "Yes -> JSON-to-HTML (final, overrides Question 5)"]);
-        showCard("q6");
-        if (!answers.q6) {
-          renderPending();
-          return;
-        }
-        trail.push(["Question 6", "Template location", answers.q6 === "ue" ? "Universal Editor (flat key-value)" : "GitHub repo (loops/logic)"]);
-        renderResult(
-          "jh",
-          "JSON-to-HTML",
-          `Fixed structure locks the decision to JSON-to-HTML regardless of Universal Editor presence. Template managed at ${answers.q6 === "ue" ? "Universal Editor level" : "GitHub repo level"}.`,
-          trail
-        );
-        return;
-      }
-
-      trail.push(["Question 4", "Fixed block/component structure?", "No -> continue to Question 5"]);
-      showCard("q5");
-      if (!answers.q5) {
-        renderPending();
-        return;
-      }
-
-      if (answers.q5 === "yes") {
-        hideCard("q6");
-        trail.push(["Question 5", "Needs Universal Editor presence?", "Yes -> Edge Worker (identifier resolved at page level)"]);
-        renderResult(
-          "ew",
-          "Edge Worker",
-          "No fixed structure and the page must stay live-editable in Universal Editor - this needs an edge worker doing in-context editing plus live API integration.",
-          trail
-        );
-        return;
-      }
-
-      trail.push(["Question 5", "Needs Universal Editor presence?", "No -> JSON-to-HTML"]);
-      showCard("q6");
-      if (!answers.q6) {
-        renderPending();
-        return;
-      }
-      trail.push(["Question 6", "Template location", answers.q6 === "ue" ? "Universal Editor (flat key-value)" : "GitHub repo (loops/logic)"]);
-      renderResult(
-        "jh",
-        "JSON-to-HTML",
-        `No fixed structure, but no Universal Editor authoring need either. Template managed at ${answers.q6 === "ue" ? "Universal Editor level" : "GitHub repo level"}.`,
-        trail
-      );
-    }
-
-    function renderPending() {
-      hideResult();
-    }
-
-    function renderResult(kind, title, subtitle, trail) {
-      const card = document.getElementById("result");
-      card.className = `result-card visible ${kind}`;
-      document.getElementById("result-title").textContent = title;
-      document.getElementById("result-sub").textContent = subtitle;
-      document.getElementById("result-trail").innerHTML = trail
-        .map(([number, question, answer]) => `<div><b>${number}.</b> ${question} - ${answer}</div>`)
-        .join("");
-      card.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-
-    document.getElementById("reset-btn").addEventListener("click", () => {
-      Object.keys(answers).forEach((key) => delete answers[key]);
-      document.querySelectorAll(".opt").forEach((option) => option.classList.remove("selected"));
-      cardOrder.forEach((id, index) => {
-        if (index === 0) {
-          showCard(id);
-        } else {
-          hideCard(id);
-        }
-      });
-      hideResult();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+  document.querySelectorAll('.options').forEach(group => {
+    const q = group.dataset.q;
+    group.querySelectorAll('.opt').forEach(btn => {
+      btn.addEventListener('click', () => selectOption(q, btn.dataset.value, btn));
     });
-  </script>
+  });
+
+  function showCard(id) {
+    document.getElementById(`card-${id}`).classList.add('visible');
+  }
+  function hideCard(id) {
+    document.getElementById(`card-${id}`).classList.remove('visible');
+    delete answers[id];
+    document.querySelectorAll(`#card-${id} .opt`).forEach(o => o.classList.remove('selected'));
+  }
+  function hideResult() {
+    document.getElementById('result').classList.remove('visible');
+  }
+
+  function advance() {
+    hideResult();
+
+    // Question 1 gate
+    if (answers.q1 === 'no') {
+      ['q2','q3','q4','q5','q6'].forEach(hideCard);
+      renderResult('custom', 'Custom block', 'This page is not server-rendered, so this checklist does not apply here.', [
+        ['Question 1', 'Is the page server-rendered?', 'No → Custom block']
+      ]);
+      return;
+    }
+    if (answers.q1 !== 'yes') { ['q2','q3','q4','q5','q6'].forEach(hideCard); return; }
+
+    showCard('q2');
+    if (!answers.q2) { ['q3','q4','q5','q6'].forEach(hideCard); return; }
+
+    showCard('q3');
+    if (!answers.q3) { ['q4','q5','q6'].forEach(hideCard); return; }
+
+    const trail = [
+      ['Question 1', 'Is the page server-rendered?', 'Yes'],
+      ['Question 2', 'Does one template make many pages?', answers.q2 === 'yes' ? 'Yes — either approach could still work' : 'No — leans toward JSON-to-HTML']
+    ];
+
+    // Question 3 = the deciding question
+    if (answers.q3 === 'yes') {
+      ['q4','q5','q6'].forEach(hideCard);
+      trail.push(['Question 3', 'Needs login or a secret key?', 'Yes → Edge Worker (this settles it)']);
+      renderResult('ew', 'Edge Worker', 'The API call needs login or a secret key, and a static page has nowhere safe to keep that. An edge worker sits in between and handles it on every request: Browser → Edge Worker → Backend.', trail);
+      return;
+    }
+    trail.push(['Question 3', 'Needs login or a secret key?', 'No → move to Question 4']);
+
+    showCard('q4');
+    if (!answers.q4) { renderPending(trail); return; }
+
+    if (answers.q4 === 'yes') {
+      hideCard('q5');
+      trail.push(['Question 4', 'Fixed layout?', 'Yes → JSON-to-HTML (this wins, skip Question 5)']);
+      showCard('q6');
+      if (!answers.q6) { renderPending(trail); return; }
+      trail.push(['Question 6', 'Template location', answers.q6 === 'ue' ? 'Universal Editor (simple, flat values)' : 'GitHub repo (loops/logic)']);
+      renderResult('jh', 'JSON-to-HTML', `The layout is fixed, so this stays JSON-to-HTML even if the page also needs Universal Editor. Template lives at the ${answers.q6 === 'ue' ? 'Universal Editor level' : 'GitHub repo level'}.`, trail);
+      return;
+    }
+
+    // Question 4 = no, go to Question 5
+    trail.push(['Question 4', 'Fixed layout?', 'No → move to Question 5']);
+    showCard('q5');
+    if (!answers.q5) { renderPending(trail); return; }
+
+    if (answers.q5 === 'yes') {
+      hideCard('q6');
+      trail.push(['Question 5', 'Must open in Universal Editor?', 'Yes → Edge Worker']);
+      renderResult('ew', 'Edge Worker', 'The layout isn\'t fixed, and the page needs to stay editable in Universal Editor — that calls for an edge worker handling both the live editing and the API data.', trail);
+      return;
+    }
+
+    // Question 5 = no -> JSON-to-HTML, ask Question 6
+    trail.push(['Question 5', 'Must open in Universal Editor?', 'No → JSON-to-HTML']);
+    showCard('q6');
+    if (!answers.q6) { renderPending(trail); return; }
+    trail.push(['Question 6', 'Template location', answers.q6 === 'ue' ? 'Universal Editor (simple, flat values)' : 'GitHub repo (loops/logic)']);
+    renderResult('jh', 'JSON-to-HTML', `The layout isn't fixed, but it also doesn't need Universal Editor. Template lives at the ${answers.q6 === 'ue' ? 'Universal Editor level' : 'GitHub repo level'}.`, trail);
+  }
+
+  function renderPending() {
+    hideResult();
+  }
+
+  function renderResult(kind, title, sub, trail) {
+    const card = document.getElementById('result');
+    card.className = `result-card visible ${kind}`;
+    document.getElementById('result-title').textContent = title;
+    document.getElementById('result-sub').textContent = sub;
+    document.getElementById('result-trail').innerHTML = trail
+      .map(([num, q, a]) => `<div><b>${num}.</b> ${q} — ${a}</div>`)
+      .join('');
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    Object.keys(answers).forEach(k => delete answers[k]);
+    Object.keys(rAnswers).forEach(k => delete rAnswers[k]);
+    document.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+    document.getElementById('hypothesis-box').classList.remove('visible');
+    ['r2', 'r3'].forEach(hideCard);
+    cardOrder.forEach((id, i) => {
+      if (i === 0) showCard(id); else hideCard(id);
+    });
+    hideResult();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+</script>
 </body>
 </html>
