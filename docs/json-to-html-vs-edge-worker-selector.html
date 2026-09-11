@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON-to-HTML vs Edge Worker - Approach Selector</title>
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --card: #ffffff;
+      --border: #e2e1db;
+      --border-strong: #c9c7bd;
+      --text: #2c2c2a;
+      --text-muted: #6b6a63;
+      --accent: #185fa5;
+      --accent-bg: #e6f1fb;
+      --jh: #0f6e56;
+      --jh-bg: #e1f5ee;
+      --ew: #993c1d;
+      --ew-bg: #faece7;
+      --custom: #5f5e5a;
+      --custom-bg: #f1efe8;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 32px 16px 80px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    .wrap {
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 600;
+      margin: 0 0 4px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin: 0 0 20px;
+    }
+
+    .banner {
+      background: var(--accent-bg);
+      border: 1px solid #b5d4f4;
+      color: #0c447c;
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+
+    .banner b { font-weight: 600; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 14px;
+      display: none;
+      animation: fadeIn 0.25s ease;
+    }
+
+    .card.visible { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .q-num {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-bg);
+      border-radius: 20px;
+      padding: 2px 9px;
+      margin-bottom: 10px;
+    }
+
+    .q-text {
+      font-size: 15px;
+      font-weight: 500;
+      margin: 0 0 4px;
+    }
+
+    .q-hint {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 0 0 14px;
+    }
+
+    .options {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .opt {
+      flex: 1;
+      min-width: 120px;
+      border: 1.5px solid var(--border-strong);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .opt:hover { border-color: var(--accent); }
+
+    .opt.selected {
+      border-color: var(--accent);
+      background: var(--accent-bg);
+      color: #0c447c;
+    }
+
+    .opt .label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .opt.selected .label {
+      color: #0c447c;
+      opacity: 0.75;
+    }
+
+    .result-card {
+      display: none;
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-top: 20px;
+      border: 2px solid;
+    }
+
+    .result-card.visible {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .result-card.jh {
+      background: var(--jh-bg);
+      border-color: var(--jh);
+    }
+
+    .result-card.ew {
+      background: var(--ew-bg);
+      border-color: var(--ew);
+    }
+
+    .result-card.custom {
+      background: var(--custom-bg);
+      border-color: var(--custom);
+    }
+
+    .result-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 4px;
+    }
+
+    .result-card.jh .result-title { color: var(--jh); }
+    .result-card.ew .result-title { color: var(--ew); }
+    .result-card.custom .result-title { color: var(--custom); }
+
+    .result-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 0 0 14px;
+    }
+
+    .trail {
+      font-size: 13px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .trail div { padding: 3px 0; }
+    .trail b { font-weight: 600; }
+
+    .reset-btn {
+      margin-top: 16px;
+      background: none;
+      border: 1.5px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .reset-btn:hover { border-color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>JSON-to-HTML vs Edge Worker</h1>
+    <p class="subtitle">Answer each question to get a recommended approach for your page.</p>
+    <div class="banner">
+      <b>Global constraint:</b> the content overlay stays singular across the project - whichever pages end up JSON-to-HTML or Edge Worker, they all read from one canonical content source.<br>
+      <b>Hard gate:</b> if the backend call needs per-request authentication, the answer is always Edge Worker - no other question can override it.
+    </div>
+
+    <div class="card visible" id="card-q1">
+      <span class="q-num">Question 1</span>
+      <p class="q-text">Is the page SSR (server-side rendered)?</p>
+      <p class="q-hint">If it's not SSR, this decision doesn't apply - it's a custom block.</p>
+      <div class="options" data-q="q1">
+        <button class="opt" data-value="yes"><span class="label">Yes</span>Page is SSR</button>
+        <button class="opt" data-value="no"><span class="label">No</span>Not SSR</button>
+      </div>
+    </div>
+
+    <div class="card" id="card-q2">
+      <span class="q-num">Question 2</span>
+      <p class="q-text">Single template, but multiple pages?</p>
+      <p class="q-hint">One template generating many instances (for example product ID or branch ID).</p>
+      <div class="options" data-q="q2">
+        <button class="opt" data-value="yes"><span class="label">Yes</span>Multiple pages, one template</button>
+        <button class="opt" data-value="no"><span class="label">No</span>Just one page</button>
+      </div>
+    </div>
+
+    <div class="card" id="card-q3">
+      <span class="q-num">Question 3 - hard gate</span>
+      <p class="q-text">Does the backend call require authentication management (token exchange, session validation, hiding a secret)?</p>
+      <p class="q-hint">If yes, this overrides everything below - a static build-time page can't securely hold live credentials.</p>
+      <div class="options" data-q="q3">
+        <button class="opt" data-value="yes"><span class="label">Yes</span>Auth required per request</button>
+        <button class="opt" data-value="no"><span class="label">No</span>Public / no credentials needed</button>
+      </div>
+    </div>
+
+    <div class="card" id="card-q4">
+      <span class="q-num">Question 4</span>
+      <p class="q-text">Does the page have a fixed block and component structure?</p>
+      <p class="q-hint">A fixed structure locks the decision to JSON-to-HTML regardless of later answers.</p>
+      <div class="options" data-q="q4">
+        <button class="opt" data-value="yes"><span class="label">Yes</span>Fixed structure</button>
+        <button class="opt" data-value="no"><span class="label">No</span>Structure varies</button>
+      </div>
+    </div>
+
+    <div class="card" id="card-q5">
+      <span class="q-num">Question 5</span>
+      <p class="q-text">Does the page need to be present / authorable in Universal Editor?</p>
+      <p class="q-hint">Identifier resolved at page level, in-context editing required.</p>
+      <div class="options" data-q="q5">
+        <button class="opt" data-value="yes"><span class="label">Yes</span>Needs Universal Editor presence</button>
+        <button class="opt" data-value="no"><span class="label">No</span>No Universal Editor authoring needed</button>
+      </div>
+    </div>
+
+    <div class="card" id="card-q6">
+      <span class="q-num">Question 6</span>
+      <p class="q-text">Where should the JSON-to-HTML template live?</p>
+      <p class="q-hint">Universal Editor only supports flat key-value mapping - no looping.</p>
+      <div class="options" data-q="q6">
+        <button class="opt" data-value="ue"><span class="label">UE-level</span>Flat key-value only</button>
+        <button class="opt" data-value="github"><span class="label">GitHub repo</span>Supports loops / logic</button>
+      </div>
+    </div>
+
+    <div class="result-card" id="result">
+      <p class="result-title" id="result-title"></p>
+      <p class="result-sub" id="result-sub"></p>
+      <div class="trail" id="result-trail"></div>
+      <button class="reset-btn" id="reset-btn">Start over</button>
+    </div>
+  </div>
+
+  <script>
+    const answers = {};
+    const cardOrder = ["q1", "q2", "q3", "q4", "q5", "q6"];
+
+    function selectOption(question, value, button) {
+      answers[question] = value;
+      document.querySelectorAll(`#card-${question} .opt`).forEach((option) => option.classList.remove("selected"));
+      button.classList.add("selected");
+      advance();
+    }
+
+    document.querySelectorAll(".options").forEach((group) => {
+      const question = group.dataset.q;
+      group.querySelectorAll(".opt").forEach((button) => {
+        button.addEventListener("click", () => selectOption(question, button.dataset.value, button));
+      });
+    });
+
+    function showCard(id) {
+      document.getElementById(`card-${id}`).classList.add("visible");
+    }
+
+    function hideCard(id) {
+      document.getElementById(`card-${id}`).classList.remove("visible");
+      delete answers[id];
+      document.querySelectorAll(`#card-${id} .opt`).forEach((option) => option.classList.remove("selected"));
+    }
+
+    function hideResult() {
+      document.getElementById("result").classList.remove("visible");
+    }
+
+    function advance() {
+      hideResult();
+
+      if (answers.q1 === "no") {
+        ["q2", "q3", "q4", "q5", "q6"].forEach(hideCard);
+        renderResult("custom", "Custom block", "Page is not SSR - this decision does not apply.", [
+          ["Question 1", "Is the page SSR?", "No -> Custom block"]
+        ]);
+        return;
+      }
+
+      if (answers.q1 !== "yes") {
+        ["q2", "q3", "q4", "q5", "q6"].forEach(hideCard);
+        return;
+      }
+
+      showCard("q2");
+      if (!answers.q2) {
+        ["q3", "q4", "q5", "q6"].forEach(hideCard);
+        return;
+      }
+
+      showCard("q3");
+      if (!answers.q3) {
+        ["q4", "q5", "q6"].forEach(hideCard);
+        return;
+      }
+
+      const trail = [
+        ["Question 1", "Is the page SSR?", "Yes"],
+        ["Question 2", "Single template, multiple pages?", answers.q2 === "yes" ? "Yes - both JSON-to-HTML and Edge Worker considered" : "No - lean JSON-to-HTML"]
+      ];
+
+      if (answers.q3 === "yes") {
+        ["q4", "q5", "q6"].forEach(hideCard);
+        trail.push(["Question 3", "Auth management required?", "Yes -> Edge Worker (hard gate, overrides everything below)"]);
+        renderResult(
+          "ew",
+          "Edge Worker",
+          "Backend call requires per-request authentication - a static build-time page has no secure place to hold live credentials. This needs an edge worker brokering the call: Browser -> Edge Worker -> Backend.",
+          trail
+        );
+        return;
+      }
+
+      trail.push(["Question 3", "Auth management required?", "No -> continue to Question 4"]);
+
+      showCard("q4");
+      if (!answers.q4) {
+        renderPending();
+        return;
+      }
+
+      if (answers.q4 === "yes") {
+        hideCard("q5");
+        trail.push(["Question 4", "Fixed block/component structure?", "Yes -> JSON-to-HTML (final, overrides Question 5)"]);
+        showCard("q6");
+        if (!answers.q6) {
+          renderPending();
+          return;
+        }
+        trail.push(["Question 6", "Template location", answers.q6 === "ue" ? "Universal Editor (flat key-value)" : "GitHub repo (loops/logic)"]);
+        renderResult(
+          "jh",
+          "JSON-to-HTML",
+          `Fixed structure locks the decision to JSON-to-HTML regardless of Universal Editor presence. Template managed at ${answers.q6 === "ue" ? "Universal Editor level" : "GitHub repo level"}.`,
+          trail
+        );
+        return;
+      }
+
+      trail.push(["Question 4", "Fixed block/component structure?", "No -> continue to Question 5"]);
+      showCard("q5");
+      if (!answers.q5) {
+        renderPending();
+        return;
+      }
+
+      if (answers.q5 === "yes") {
+        hideCard("q6");
+        trail.push(["Question 5", "Needs Universal Editor presence?", "Yes -> Edge Worker (identifier resolved at page level)"]);
+        renderResult(
+          "ew",
+          "Edge Worker",
+          "No fixed structure and the page must stay live-editable in Universal Editor - this needs an edge worker doing in-context editing plus live API integration.",
+          trail
+        );
+        return;
+      }
+
+      trail.push(["Question 5", "Needs Universal Editor presence?", "No -> JSON-to-HTML"]);
+      showCard("q6");
+      if (!answers.q6) {
+        renderPending();
+        return;
+      }
+      trail.push(["Question 6", "Template location", answers.q6 === "ue" ? "Universal Editor (flat key-value)" : "GitHub repo (loops/logic)"]);
+      renderResult(
+        "jh",
+        "JSON-to-HTML",
+        `No fixed structure, but no Universal Editor authoring need either. Template managed at ${answers.q6 === "ue" ? "Universal Editor level" : "GitHub repo level"}.`,
+        trail
+      );
+    }
+
+    function renderPending() {
+      hideResult();
+    }
+
+    function renderResult(kind, title, subtitle, trail) {
+      const card = document.getElementById("result");
+      card.className = `result-card visible ${kind}`;
+      document.getElementById("result-title").textContent = title;
+      document.getElementById("result-sub").textContent = subtitle;
+      document.getElementById("result-trail").innerHTML = trail
+        .map(([number, question, answer]) => `<div><b>${number}.</b> ${question} - ${answer}</div>`)
+        .join("");
+      card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    document.getElementById("reset-btn").addEventListener("click", () => {
+      Object.keys(answers).forEach((key) => delete answers[key]);
+      document.querySelectorAll(".opt").forEach((option) => option.classList.remove("selected"));
+      cardOrder.forEach((id, index) => {
+        if (index === 0) {
+          showCard(id);
+        } else {
+          hideCard(id);
+        }
+      });
+      hideResult();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  </script>
+</body>
+</html>
