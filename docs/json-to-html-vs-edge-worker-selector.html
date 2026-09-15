@@ -44,6 +44,40 @@
     margin-bottom: 24px;
   }
   .banner b { font-weight: 600; }
+  .examples-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+  .example-btn {
+    background: var(--card);
+    border: 1.5px dashed var(--border-strong);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .example-btn:hover { border-color: var(--accent); background: var(--accent-bg); }
+  .brief-box {
+    display: none;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text);
+  }
+  .brief-box.visible { display: block; animation: fadeIn 0.2s ease; }
+  .brief-box .brief-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
   .card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -178,6 +212,13 @@
     <b>One rule for the whole project:</b> every page reads from the same content source, whether it ends up as JSON-to-HTML or Edge Worker.<br>
     <b>One hard rule:</b> if the backend call needs login/auth, always use Edge Worker. Nothing else can change that answer.
   </div>
+
+  <div class="examples-row">
+    <button class="example-btn" id="example-jh-btn">▶ See a worked example — Branch locator (JSON-to-HTML)</button>
+    <button class="example-btn" id="example-ew-btn">▶ See a worked example — Product pages (Edge Worker)</button>
+  </div>
+
+  <div class="brief-box" id="brief-box"></div>
 
   <p class="phase-heading">Phase 1 &middot; Understand the Requirement</p>
   <p class="phase-desc">Answer these to get a first guess. Phase 2 below will confirm it, or change it if needed.</p>
@@ -471,7 +512,7 @@
     card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
-  document.getElementById('reset-btn').addEventListener('click', () => {
+  function resetAll() {
     Object.keys(answers).forEach(k => delete answers[k]);
     Object.keys(rAnswers).forEach(k => delete rAnswers[k]);
     document.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
@@ -481,7 +522,44 @@
       if (i === 0) showCard(id); else hideCard(id);
     });
     hideResult();
+  }
+
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    resetAll();
+    document.getElementById('brief-box').classList.remove('visible');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  function clickOpt(cardId, value) {
+    const btn = document.querySelector(`#card-${cardId} [data-value="${value}"]`);
+    if (btn) btn.click();
+  }
+
+  function loadExample(steps, brief) {
+    resetAll();
+    const briefBox = document.getElementById('brief-box');
+    if (brief) {
+      briefBox.innerHTML = `<span class="brief-label">Client requirement, as given</span>${brief}`;
+      briefBox.classList.add('visible');
+    } else {
+      briefBox.classList.remove('visible');
+    }
+    steps.forEach(([cardId, value]) => clickOpt(cardId, value));
+    briefBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  document.getElementById('example-jh-btn').addEventListener('click', () => {
+    loadExample([
+      ['r1', 'enumerated'], ['r2', 'same'], ['r3', 'single'],
+      ['q1', 'yes'], ['q2', 'yes'], ['q3', 'no'], ['q4', 'yes'], ['q6', 'github']
+    ], `"We need a Branch Locator page on the website where customers can search for and view all our branch locations. Each listing should show the branch name, address, phone number, working hours, and a map pin. This data currently lives in four different backend systems — branch master data, contact details, working hours, and geolocation — owned by four different teams. Visitors shouldn't notice any load delay, and the page needs to rank well in search since people search &lsquo;branch near me.&rsquo; Every branch listing should look the same — we don't need to customize the layout per branch. Content editors shouldn't need a developer to add a new branch; it should just appear once it's added to the source systems."`);
+  });
+
+  document.getElementById('example-ew-btn').addEventListener('click', () => {
+    loadExample([
+      ['r1', 'live'],
+      ['q1', 'yes'], ['q2', 'yes'], ['q3', 'no'], ['q4', 'no'], ['q5', 'yes']
+    ], `"We need product detail pages for our e-commerce catalog, one per product ID in the URL. Marketing and merchandising run promotional campaigns constantly, and they need to add, remove, or rearrange promo banners, up-sell blocks, and seasonal messaging directly on individual product pages — without waiting for a developer to ship a release. This has to happen in Universal Editor so business users can make the change themselves, live. The core product data — name, description, images — is public and doesn't need a login, but we want marketing to be able to customize the page per product or per campaign at any time."`);
   });
 </script>
 </body>
